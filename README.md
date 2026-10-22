@@ -4,13 +4,13 @@ Welcome to the freecad simulator by moi. I know simulation has been a pain point
 
 I've been working on this for ages, along with the rest of BearCAM (as yet unreleased!) - The FreeCAD crew, community, and source have been invaluable to my learning experience, so this is part of giving back!
 
+The source code is not currently available, though if a FreeCAD of OCCT maintainer has a genuine use case for inspection, that is not impossible. 
+If you are one of a hundred people making CAD software currently, I wish you good luck, but have no interest in collaboration or contribution.
+
 ## Why no pull request? This should be on core.
 
 A few reasons. Firstly, I'd need to port to metal on mac, and I do not own a macbook. Secondly this simulator is 15k lines or so of pretty non trivial code, which would be a nightmare to verify. I'm not complaining about this; it's just one of those things! 
 If the sim is popular, I will port it to metal. I may need a macbook donated though :D 
-
-The source code is not currently available, though if a FreeCAD of OCCT maintainer has a genuine use case for inspection, that is not impossible. 
-If you are one of a hundred people making CAD software currently, I wish you good luck, but have no interest in collaboration or contribution.
 
 I'm open to adding collision checking; however if I do, it will run FreeCAD's checks, not my own. Don't expect it to be identical in output to vericut or bearcam. 
 
