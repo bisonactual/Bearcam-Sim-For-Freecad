@@ -4,7 +4,7 @@ Welcome to the freecad simulator by moi. I know simulation has been a pain point
 
 I've been working on this for ages, along with the rest of BearCAM (as yet unreleased!) - The FreeCAD crew, community, and source have been invaluable to my learning experience, so this is part of giving back!
 
-##Why no pull request? This should be on core.
+## Why no pull request? This should be on core.
 
 A few reasons. Firstly, I'd need to port to metal on mac, and I do not own a macbook. Secondly this simulator is 15k lines or so of pretty non trivial code, which would be a nightmare to verify. I'm not complaining about this; it's just one of those things! 
 If the sim is popular, I will port it to metal. I may need a macbook donated though :D 
