@@ -5,6 +5,7 @@ Welcome to the freecad simulator by moi. I know simulation has been a pain point
 I've been working on this for ages, along with the rest of BearCAM (as yet unreleased!) - The FreeCAD crew, community, and source have been invaluable to my learning experience, so this is part of giving back!
 
 The source code is not currently available, though if a FreeCAD of OCCT maintainer has a genuine use case for inspection, that is not impossible. 
+
 If you are one of a hundred people making CAD software currently, I wish you good luck, but have no interest in collaboration or contribution.
 
 ## Why no pull request? This should be on core.
