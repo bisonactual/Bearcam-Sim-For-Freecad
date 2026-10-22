@@ -17,6 +17,9 @@ I suggest heightfields for 3 axis and sparse voxel bricks for 5/4 axis. (you can
 
 Enjoy! (below is clanker output.)
 
+
+Clanker didnt think to link the docs, so here we are: https://github.com/bisonactual/Bearcam-Sim-For-Freecad/blob/main/docs/use.md
+
 ## Quick start
 
 1. Install the add-on and restart FreeCAD ([installing](docs/install.md)).
