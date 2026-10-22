@@ -1,0 +1,107 @@
+DRAFT FOR REVIEW BY A SOLICITOR. NOT YET IN FORCE. Square brackets mark details to fill in.
+
+BEARCAM SIMULATOR: END-USER LICENCE (FREEWARE)
+
+This licence is between you and Bearcam.io (https://bearcam.io) ("we", "us").
+
+1. WHAT THIS LICENCE COVERS
+
+1.1 "The Software" means the BearCAM simulator program (the files named "stockviewer" and
+"stockviewer.exe"), its shader files (the "shaders" folder), and the other files we distribute
+with it in our official release archives, together with any updates we provide. The shader files
+are part of the Software.
+
+1.2 The BearCAM FreeCAD add-on that starts the Software is licensed separately, under the MIT
+licence in the file LICENSE. This licence does not cover the add-on, and the MIT licence does not
+cover the Software.
+
+1.3 Third-party files distributed with the Software (such as the Microsoft Visual C++ runtime
+libraries in the Windows archive) are licensed by their owners on their own terms, listed in
+CREDITS.
+
+2. YOUR LICENCE
+
+2.1 We give you a free of charge, non-exclusive, non-transferable licence to install and use the
+Software, in the binary form in which we distribute it, for as long as you comply with this
+licence:
+  (a) as started by the BearCAM FreeCAD add-on; or
+  (b) to simulate machining programs made in FreeCAD.
+
+2.2 You may make the copies reasonably needed for that use, including backup copies.
+
+3. WHAT YOU MUST NOT DO
+
+Except as this licence allows, or as the law allows despite any agreement to the contrary, you
+must not:
+  (a) distribute, publish, rent, lend, sell, resell or sublicense the Software or any part of it,
+      or make it available to others, other than by pointing them to our official download;
+  (b) modify, adapt, translate or make derivative works of the Software, including its shader
+      files;
+  (c) reverse engineer, decompile or disassemble the Software, except to the extent the law
+      expressly permits it (including, in the United Kingdom, sections 50B and 296A of the
+      Copyright, Designs and Patents Act 1988, which allow decompilation in some circumstances to
+      achieve interoperability); or
+  (d) remove or change any notices of ownership in the Software.
+
+4. OWNERSHIP
+
+The Software is licensed to you, not sold. We (or our licensors) own all intellectual property
+rights in it. This licence gives you no rights in our names, logos or trademarks, including the
+name BearCAM and the bear logo.
+
+5. THE SIMULATION IS A VISUAL AID, NOT A GUARANTEE
+
+5.1 The Software shows an approximation of how a machining program may cut the stock. It does not
+check your machine, its limits, its controller's settings, your fixtures, clamps, tool holders,
+tool lengths or work offsets, and it may not show every collision, gouge, rapid move through
+material or error in a program.
+
+5.2 A simulation that looks right does not mean a program is safe or correct. You must prove every
+program on the machine yourself before cutting, using safe practice (for example, running in air,
+at reduced feed and rapid rates, a block at a time), and you remain responsible for what the
+machine does.
+
+6. NO WARRANTY
+
+To the extent the law allows, the Software is provided "as is", without any warranty or
+condition of any kind, express or implied, including satisfactory quality, fitness for a
+particular purpose and non-infringement. We do not promise that the Software will be free of
+errors, run without interruption or be available, or that we will provide support or updates.
+
+7. OUR LIABILITY
+
+7.1 Nothing in this licence limits or excludes our liability for death or personal injury caused
+by our negligence, for fraud or fraudulent misrepresentation, or for anything else that cannot be
+limited or excluded under the law of England and Wales.
+
+7.2 If you are a consumer, nothing in this licence affects your statutory rights. In particular, if
+the Software causes damage to a device or digital content belonging to you because we did not use
+reasonable care and skill, you may be entitled to a remedy under the Consumer Rights Act 2015.
+
+7.3 Subject to 7.1 and 7.2, we are not liable, whether in contract, tort (including negligence),
+breach of statutory duty or otherwise, for any loss of profit, revenue, business, data or
+goodwill, for any damage to machines, tools, tool holders, fixtures or workpieces, or for any
+indirect or consequential loss, arising from your use of, or inability to use, the Software.
+
+7.4 Subject to 7.1 and 7.2, our total liability to you under or in connection with this licence is
+limited to £100.
+
+8. ENDING THIS LICENCE
+
+8.1 This licence ends automatically if you break it. When it ends you must stop using the Software
+and delete every copy you have.
+
+8.2 Sections 4 to 7 and 9 continue after this licence ends.
+
+9. GENERAL
+
+9.1 We may update this licence for later versions of the Software. The licence in the archive you
+downloaded applies to that version.
+
+9.2 If a court finds part of this licence unenforceable, the rest continues in force.
+
+9.3 This licence is governed by the law of England and Wales, and the courts of England and Wales
+have exclusive jurisdiction, except that if you are a consumer living elsewhere in the United
+Kingdom you may also bring proceedings in your local courts.
+
+Questions about this licence: licensing@bearcam.io

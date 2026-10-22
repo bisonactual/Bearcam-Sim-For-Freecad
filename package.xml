@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
+  <name>BearCAM Simulator</name>
+  <description>FreeCAD G-code simulator, by BearCAM: plays a CAM job's posted G-code in the BearCAM stock simulator (its own window), with real-time speed steps, a DRO, the G-code beside it and the operations on the timeline. Windows and Linux.</description>
+  <version>0.5.0</version>
+  <date>2026-10-22</date>
+  <!-- To set: the maintainer's address. The simulator program (release files) is under
+       LICENSE-SIMULATOR.txt, not MIT. -->
+  <maintainer email="">BearCAM</maintainer>
+  <license file="LICENSE">MIT</license>
+  <url type="repository" branch="main">https://github.com/bisonactual/Bearcam-Sim-For-Freecad</url>
+  <icon>Resources/icons/BearCAMSimulate.png</icon>
+  <freecadmin>1.0.0</freecadmin>
+  <content>
+    <other>
+      <name>BearCAM Simulator</name>
+      <subdirectory>./</subdirectory>
+      <tag>CAM</tag>
+      <tag>simulation</tag>
+      <tag>G-code</tag>
+    </other>
+  </content>
+</package>
