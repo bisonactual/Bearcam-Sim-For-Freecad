@@ -31,7 +31,7 @@ It never skips a code silently. Ask for a code you need and it can be added.
 | M6 T | tool change (T before or after M6); a T alone selects the tool |
 | M7, M8, M9, M48 - M53 | coolant, overrides |
 | M428, M429 | LinuxCNC tool-tip control on / off (5-axis machines) |
-| M851, M852 | read and ignored (Makera's posts write them) |
+| M851, M852 | the add-on annotates standalone auxiliary-control blocks from the official `makera_26_MCH` / `makera_legacy` posts as comments in the simulation copy; M851's optional S0–100 is PWM, not spindle RPM |
 | X Y Z, A (and C on a machine with a C table), I J K R, F S T, P Q, H D N | words |
 | ( ), ; | comments; FreeCAD's `(Begin operation: NAME)` comments label the timeline |
 
@@ -44,3 +44,8 @@ spindle-synchronised motion), G38.x (probing), G41 and G42 (cutter radius compen
 M99; parameters and expressions (`#`, `[ ]`); a T number the job does not list.
 
 A drilling cycle in G91, outside G17 or with L repeats is refused too.
+
+Makera auxiliary-control blocks combined with motion or other commands are refused by the
+add-on. Put them on separate lines. Other posts and unknown M-codes are not rewritten. The
+unchanged 0.5.0 executable itself still interprets S on a raw M851 block as spindle speed;
+the add-on's `program.nc` adaptation prevents that during a FreeCAD simulation.

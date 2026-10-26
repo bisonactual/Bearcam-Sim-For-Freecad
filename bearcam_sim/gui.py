@@ -40,10 +40,10 @@ def choose_job(doc):
 
 
 def choose_post(doc, job):
-    """The job's post processor; for a job that names none, the one chosen for it before, else
-    the user's pick (remembered for this job)."""
-    if job.PostProcessor:
-        return job.PostProcessor
+    """The machine's post, else the job's legacy post, a remembered choice or the user's pick."""
+    configured = jobmap.machine_post(job) or getattr(job, "PostProcessor", "")
+    if configured:
+        return configured
     remembered = prefs.post_choice(doc, job)
     if remembered:
         return remembered

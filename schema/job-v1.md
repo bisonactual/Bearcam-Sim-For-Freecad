@@ -1,8 +1,10 @@
 # The simulator's job file, version 1
 
-The add-on writes a job file next to the posted program and opens it in the viewer:
+The add-on writes a job file next to the simulation program and opens it in the viewer:
 `stockviewer job.json`. The viewer reads the job file again whenever it or its program changes
 (a re-post), keeping the camera. The machine-readable form is `job-v1.schema.json`.
+`posted.nc` retains the unmodified export; `program.nc` contains the documented simulation-only
+adaptations, with the same physical line numbers. `source.posted_nc` names the original export.
 
 All lengths are millimetres and all angles degrees, whatever the program's units. Coordinates are
 the program's: FreeCAD's posts write the document's coordinates, so the stock comes from the

@@ -6,10 +6,11 @@ In the CAM workbench, select a job (or anything in it) and click **Simulate in B
 the *Project Setup* toolbar and in the *CAM* menu, after *Post Process Selected*. With one job in
 the document there is nothing to select; with several, it asks which.
 
-1. **Post.** The job is posted with its own post processor. For a job that names none, the command
-   asks which to use and remembers it for that job (a post processor set on the job later is used
-   instead). No G-code editor opens. A job posted as several files is played as one program, in
-   order.
+1. **Post.** A job with a machine uses that machine's post processor, settings and the job's
+   property overrides, through FreeCAD's machine-post export. This takes precedence over a
+   legacy or remembered post choice. A job without a machine uses its legacy post; if it names
+   none, the command asks which legacy post to use and remembers it. No G-code editor or remote
+   upload runs for machine posts. A job posted as several files is played as one program, in order.
 2. **Describe.** The stock, the tools, the work offset and the operations go into a job file next
    to the program ([the job file](../schema/job-v1.md)).
 3. **Play.** The simulator opens in its own window. Change the job and click the command again: the
@@ -18,6 +19,17 @@ the document there is nothing to select; with several, it asks which.
 The command refuses, with the reason, a job it cannot show yet: several work offsets, stock from
 an existing solid, a tool shape it does not draw, or G-code it does not read
 ([G-code](gcode.md), [limits](limits.md)).
+
+The hand-off folder keeps the unmodified export as `posted.nc` and the simulator's input as
+`program.nc`. The simulation copy replaces parentheses inside known tool/operation label
+comments with brackets. For the official Makera posts, standalone `M851 S…` and `M852` blocks
+become annotated comments, so external-output PWM does not change simulated spindle RPM.
+Line counts stay the same. Motion and unknown commands are not removed. This does not repair
+files exported separately with FreeCAD's Post Process command; correct malformed labels there.
+
+The current Makera machine post also needs a numeric minimum spindle speed where FreeCAD 26.3
+uses `None` for an unspecified toolhead limit. The add-on retains Makera's configured post minimum
+in that case, without changing the machine file, job settings or a specified toolhead limit.
 
 ### Stock
 

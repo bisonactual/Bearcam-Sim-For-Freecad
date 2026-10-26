@@ -2,7 +2,7 @@
 #   set BEARCAM_DOC=path\to\cam.FCStd           the document
 #   set BEARCAM_JOB=Job                         a job's name or label; "*" (default) for every job
 #   set BEARCAM_POST=linuxcnc                   the post for jobs that name none (else they are refused)
-#   set BEARCAM_POST_FORCE=linuxcnc             a post for every job, instead of the job's own
+#   set BEARCAM_POST_FORCE=linuxcnc             override a legacy job's post (machines keep their own)
 #   set BEARCAM_OUT=folder                      where each job's folder goes (default: FreeCAD's cache folder)
 #   set BEARCAM_VIEWER=folder                   with BEARCAM_LAUNCH=1, the viewer to open each job in
 #   freecadcmd path\to\bearcam_sim\headless.py
@@ -26,8 +26,9 @@ def main():
     for job in jobmap.jobs_in(doc):
         if want != "*" and want not in (job.Name, job.Label):
             continue
-        post = os.environ.get("BEARCAM_POST_FORCE") or job.PostProcessor or fallback
         try:
+            post = (jobmap.machine_post(job) or os.environ.get("BEARCAM_POST_FORCE")
+                    or getattr(job, "PostProcessor", "") or fallback)
             if not post:
                 raise jobmap.SimError(f'The job "{job.Label}" names no post processor (set BEARCAM_POST).')
             folder = jobmap.job_folder(doc, job, out) if out else None

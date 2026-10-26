@@ -2,6 +2,7 @@
 # the viewer in a job file (format "bearcam-sim-job", version 1: schema/job-v1.md). Runs with or
 # without the GUI; anything the simulator cannot show yet is refused with the reason in words.
 import json
+import math
 import os
 import re
 
@@ -30,7 +31,8 @@ def value(obj, name, default=None):
 
 
 def is_job(obj):
-    return all(hasattr(obj, p) for p in ("Operations", "Stock", "Tools", "PostProcessor"))
+    return (all(hasattr(obj, p) for p in ("Operations", "Stock", "Tools"))
+            and (hasattr(obj, "PostProcessor") or hasattr(obj, "Machine")))
 
 
 def jobs_in(doc):
@@ -67,22 +69,62 @@ def operations(job):
 # ---- Posting
 
 
+MAKERA_POSTS = {"makera_26_mch", "makera_legacy"}
+
+
+def machine_post(job):
+    """The configured machine's post takes precedence over legacy and remembered choices."""
+    name = getattr(job, "Machine", "")
+    if not name:
+        return ""
+    try:
+        from Machine.models.machine import MachineFactory
+
+        machine = MachineFactory.get_machine(name)
+        post_name = getattr(machine, "postprocessor_file_name", "")
+        if not post_name:
+            raise SimError(f'The machine "{name}" names no post processor.')
+        return post_name
+    except SimError:
+        raise
+    except Exception as e:
+        raise SimError(f'The machine "{name}" could not be loaded: {e}') from e
+
+
 def post_job(job, post_name):
     """The job's G-code from the named post processor, as one program (split output joined in
     order). No editor or dialog opens: the post runs as if FreeCAD had no GUI."""
     from Path.Post.Processor import PostProcessorFactory
 
+    configured = machine_post(job)
+    post_name = configured or post_name
     gui = getattr(FreeCAD, "GuiUp", 0)
     try:
         FreeCAD.GuiUp = 0  # posts open their G-code editor only with the GUI up
         post = PostProcessorFactory.get_post_processor(job, post_name)
-        if post is None:
+        method = "export2" if configured else "export"
+        if not callable(getattr(post, method, None)):
             raise SimError(f'The post processor "{post_name}" was not found.')
+        # Match FreeCAD's machine-post dialog: apply the stored machine settings and job
+        # overrides once, then export without dialogs or the remote-upload hook.
+        if configured:
+            if callable(getattr(post, "apply_configuration_bundle", None)):
+                post.apply_configuration_bundle()
+                post._bundle_applied = True
+            post._dialog_handled = True
+            post.remote_post = lambda sections: None
+            # The current Makera post compares RPM with this value without checking for
+            # None. FreeCAD 26.3 uses None for an unspecified toolhead limit. Retain the
+            # post's configured minimum in that case; never replace a real machine limit.
+            if post_name.lower() == "makera_26_mch" and post.values.get("MIN_SPINDLE_SPEED") is None:
+                minimum = post._machine.postprocessor_properties.get("min_spindle_speed")
+                if minimum is not None:
+                    post.values["MIN_SPINDLE_SPEED"] = minimum
         if hasattr(post, "values") and isinstance(post.values, dict):
             post.values["SHOW_EDITOR"] = False
         if hasattr(post, "script_module"):
             setattr(post.script_module, "SHOW_EDITOR", False)
-        sections = post.export()
+        sections = getattr(post, method)()
     except SimError:
         raise
     except Exception as e:
@@ -260,13 +302,76 @@ def tools_of(ops):
 # ---- The posted program
 
 
+def comment_text(text):
+    """Labels inside generated comments must not open or close a G-code comment."""
+    return text.replace("(", "[").replace(")", "]")
+
+
+def uncomment(line):
+    """Read code outside balanced, possibly nested, parentheses and semicolon comments."""
+    depth, out = 0, []
+    for c in line:
+        if c == ";" and not depth:
+            break
+        if c == "(":
+            depth += 1
+            out.append(" ")
+        elif c == ")" and depth:
+            depth -= 1
+        elif not depth:
+            out.append(c)
+    return "".join(out)
+
+
+def simulation_gcode(job, nc, post_name):
+    """Adapt only known label comments and Makera auxiliary-only blocks, one line for one
+    line. The original export is kept separately; motion and unknown commands stay strict."""
+    labels = set()
+    for op, tc in operations(job):
+        for obj in (op, tc, getattr(tc, "Tool", None)):
+            label = getattr(obj, "Label", "")
+            if label and "\n" not in label and "\r" not in label:
+                labels.add(label)
+    comments = {}
+    for label in labels:
+        for prefix in ("", "Begin operation: ", "Finish operation: "):
+            text = prefix + label
+            comments[("(" + text + ")").casefold()] = "(" + comment_text(text) + ")"
+    makera = post_name.lower() in MAKERA_POSTS
+    word = re.compile(r"([A-Z])\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))", re.I)
+    out = []
+    for line_no, line in enumerate(nc.splitlines(keepends=True), 1):
+        body = line.rstrip("\r\n")
+        ending = line[len(body):]
+        match = re.fullmatch(r"(\s*(?:N\d+\s*)?)(.*?)(\s*)", body, re.I)
+        if match:
+            before, text, after = match.groups()
+            if text.casefold() in comments:
+                body = before + comments[text.casefold()] + after
+        if makera:
+            code = uncomment(body).upper()
+            words = [(letter, float(number)) for letter, number in word.findall(code)]
+            aux = [v for letter, v in words if letter == "M" and v in (851, 852)]
+            if aux:
+                letters = [letter for letter, _ in words]
+                valid = (not word.sub("", code).strip() and len(aux) == 1
+                         and all(letter in "NMS" for letter in letters)
+                         and all(letters.count(letter) <= 1 for letter in "NMS")
+                         and ("N" not in letters or letters[0] == "N")
+                         and all(math.isfinite(v) for _, v in words)
+                         and all(0 <= v <= 100 for letter, v in words if letter == "S")
+                         and (aux[0] == 851 or "S" not in letters))
+                if not valid:
+                    raise SimError(f"Line {line_no}: Makera M851/M852 is supported only as a separate "
+                                   "auxiliary-control block (M851 with optional S0–100, or M852).")
+                body = "; BearCAM simulation: Makera auxiliary output only | " + body
+        out.append(body + ending)
+    return "".join(out)
+
+
 def code_lines(nc):
     """The program's lines without comments, upper case."""
-    out = []
-    for line in nc.splitlines():
-        line = re.sub(r"\([^)]*\)", "", line).split(";")[0]
-        out.append(line.upper())
-    return out
+    return [uncomment(line).upper() for line in nc.splitlines()]
 
 
 def units_of(nc):
@@ -283,15 +388,20 @@ def has_a_axis(nc):
 
 
 def operation_lines(nc, ops):
-    """Each operation's first line: its "(Begin operation: LABEL)" comment, found in order."""
-    lines = nc.splitlines()
+    """Each operation's first line: a begin-operation marker, or a machine post's label."""
+    lines = [re.sub(r"^\s*N\d+\s*", "", line, flags=re.I).strip().casefold()
+             for line in nc.splitlines()]
     out, at = [], 0
     for op, tc in ops:
-        want = "(begin operation: " + op.Label.strip().lower() + ")"
         first = 0
-        for i in range(at, len(lines)):
-            if lines[i].strip().lower().replace("  ", " ") == want:
-                first, at = i + 1, i + 1
+        label = op.Label.strip()
+        for prefix in ("Begin operation: ", ""):
+            wants = {("(" + prefix + name + ")").casefold() for name in (label, comment_text(label))}
+            for i in range(at, len(lines)):
+                if lines[i] in wants:
+                    first, at = i + 1, i + 1
+                    break
+            if first:
                 break
         entry = {"name": op.Label, "first_line": first}
         if tc is not None:
@@ -360,7 +470,9 @@ def prepare(job, post_name, rapid_mm_min=5000.0, folder=None):
     ops = operations(job)
     stock = stock_of(job)
     tools = tools_of(ops)
-    nc = post_job(job, post_name)
+    post_name = machine_post(job) or post_name
+    posted = post_job(job, post_name)
+    nc = simulation_gcode(job, posted, post_name)
     folder = folder or job_folder(doc, job)
     os.makedirs(folder, exist_ok=True)
     nc_path = os.path.join(folder, "program.nc")
@@ -377,10 +489,12 @@ def prepare(job, post_name, rapid_mm_min=5000.0, folder=None):
         "work_offset": {"name": fixtures[0] if fixtures else "", "origin": [0, 0, 0]},
         "rotary": {"axis": "A", "a_sign": -1} if has_a_axis(nc) else None,
         "operations": operation_lines(nc, ops),
-        "source": {"document": doc.FileName, "job": job.Name, "post_processor": post_name},
+        "source": {"document": doc.FileName, "job": job.Name, "post_processor": post_name,
+                   "posted_nc": "posted.nc"},
     }
     text = job_text(data)
     # The program first, then the job file: the viewer reads both once they stand still.
+    write_atomic(os.path.join(folder, "posted.nc"), posted)
     write_atomic(nc_path, nc)
     write_atomic(job_path, text)
     summary = (f"{doc.Label}: {job.Label} posted with {post_name}: {len(nc.splitlines())} lines, "
