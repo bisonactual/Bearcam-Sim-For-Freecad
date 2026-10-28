@@ -11,13 +11,16 @@ the document there is nothing to select; with several, it asks which.
    legacy or remembered post choice. A job without a machine uses its legacy post; if it names
    none, the command asks which legacy post to use and remembers it. No G-code editor or remote
    upload runs for machine posts. A job posted as several files is played as one program, in order.
-2. **Describe.** The stock, the tools, the work offset and the operations go into a job file next
-   to the program ([the job file](../schema/job-v1.md)).
-3. **Play.** The simulator opens in its own window. Change the job and click the command again: the
+2. **Machine.** The first time for a job, the command asks which machine to show it on: *None*,
+   the *Makera Carvera Air* or the *PrintNC V4* (see [Machine](#machine)), and remembers it for that
+   job.
+3. **Describe.** The stock, the tools, the work offset, the operations and the machine go into a
+   job file next to the program ([the job file](../schema/job-v1.md)).
+4. **Play.** The simulator opens in its own window. Change the job and click the command again: the
    open simulator reads the job again and keeps its view.
 
-The command refuses, with the reason, a job it cannot show yet: several work offsets, stock from
-an existing solid, a tool shape it does not draw, or G-code it does not read
+The command refuses, with the reason, a job it cannot show yet: several work offsets, a bit that
+does not cut (a probe) or whose solid gives no outline, or G-code it does not read
 ([G-code](gcode.md), [limits](limits.md)).
 
 The hand-off folder keeps the unmodified export as `posted.nc` and the simulator's input as
@@ -37,7 +40,27 @@ From the Job's Stock settings:
 
 - **Create Box** and **From Base**: a box.
 - **Create Cylinder**: a cylinder about Z, or a bar along X (for 4-axis work).
-- **An existing solid**: not supported yet.
+- **Any other stock**: an existing solid (a casting, a part from an earlier setup, a hexagon or a
+  tube), a box turned off the axes, a cylinder along Y: its solid goes to the simulator as a mesh
+  (`stock.stl` beside the job file, its faces within 0.05 mm of the solid's).
+
+### Machine
+
+A 3-axis job can be shown on a machine: the simulator draws it round the stock, its moving parts
+following the tool, with the stock in the middle of its bed. **M** shows or hides the machine (F
+fits the whole machine while it shows), **D** shows or hides its dust shoe, and **V** sees through
+its moving parts; the simulator remembers them. Nothing on the screen names these keys: **?** lists
+them. Display only: the machine never cuts and is never checked for collisions.
+
+- **Makera Carvera Air:** its table moves in Y and its spindle in X and Z (on the screen the stock
+  stays still, so the frame moves with the tool in Y). A reference model from Makera's published
+  sizes and photographs, not a factory model. Its dust shoe is drawn see-through; its hose, cable
+  chain and tablet cradle are left out.
+- **PrintNC V4:** the gantry moves in Y, the X carriage on it, the spindle in Z.
+
+To change a job's machine, use **CAM > BearCAM simulator machine...**, then simulate again. A job
+whose FreeCAD machine (the job's *Machine*, FreeCAD 1.2) names a Carvera or a PrintNC is offered
+that machine first. Headless: `BEARCAM_MACHINE=carvera-air` (or `printnc-v4`).
 
 ### Tools
 
@@ -50,12 +73,24 @@ From each operation's tool controller, by the bit's shape:
 | bullnose | bull-nose end mill, with its corner radius |
 | v-bit, chamfer | cone point with its angle and flat tip |
 | drill (and spot drill) | cone point at its tip angle |
+| reamer | flat end mill of its diameter |
+| taperedballnose | tapered ball nose: the ball, the taper's angle up to its taper diameter |
+| dovetail | dovetail cutter: its flank at the cutting edge angle, its neck and shank |
 | tslotmill | T-slot cutter, with its neck and shank |
 | thread-mill | single-tooth thread mill, with its neck and shank |
+| a custom shape named *lollipop* | a ball on a narrower neck (Diameter, NeckDiameter, NeckLength, ShankDiameter) |
+| a custom shape named *countersink* | a cone at its CuttingEdgeAngle (or TipAngle) |
+| any other bit (radius, slitting saw, tap, custom shapes) | its own outline, measured from its solid |
+| probe | refused: it does not cut |
 
-Other shapes are refused by name. Two different bits under one tool number are refused. When a
-program never changes tool itself (GRBL's posts leave tool changes as comments, for a change by
-hand), each operation is drawn with its own tool controller's bit.
+A bit whose operation has a **Dragknife dressup** is a drag knife: the simulator cuts a 0.25 mm
+kerf along the blade's path, which trails the holder's axis by the dressup's offset and swings
+round as the path turns, so you can see whether the corner actions square the corners. A custom
+shape named *dragknife* is one too (its BladeOffset).
+
+Two different bits under one tool number are refused. When a program never changes tool itself
+(GRBL's posts leave tool changes as comments, for a change by hand), each operation is drawn with
+its own tool controller's bit.
 
 ## The simulator
 
@@ -102,7 +137,8 @@ A memory or voxel change starts the engine again, which replays to where it was.
 on a box, the rotary height field for 4-axis work on a bar, and the volume for the rest: a
 cylinder or turned stock, 4-axis work on a box, 5-axis. E switches between the ones that can show
 the job. The height field sees the stock from above only, so it cannot show the undercut that a
-T-slot cutter or thread mill cuts: switch to the volume (E) to see them.
+T-slot cutter, thread mill, dovetail or lollipop cuts: a job with one of those opens in the
+volume.
 
 ## Keys and mouse
 
@@ -117,16 +153,18 @@ T-slot cutter or thread mill cuts: switch to the volume (E) to see them.
 | Left drag | turn the view round and tilt it up or down |
 | Right drag | pan |
 | Wheel | zoom |
-| F | fit the view to the stock |
+| 3D mouse (SpaceMouse) | the view moves as the cap does: push it across, pull it toward you, tilt or twist it; its left button fits the view |
+| F | fit the view to the stock (to the whole machine while one shows) |
 | E | next engine |
-| M | machine view / part view (rotary programs) |
+| M | show / hide the machine (a job shown on one); machine view / part view (rotary programs) |
+| D | show / hide the machine's dust shoe (a job on a machine with one) |
 | T | toolpath on / off |
 | G | cutter on / off |
 | C | colours: by tool, recent cuts, by move order |
 | A | exact surfaces / plain height field (comparison) |
 | O | shading |
 | S | how often the stock follows the cutter (as the slider) |
-| D, L | fold the DRO, the G-code pane |
+| D, L | fold the DRO (but see D above), the G-code pane |
 | P | settings (as the Settings button) |
 | I | hide all text (the picture and the timeline only) |
 | H or ? | the help |
@@ -134,3 +172,10 @@ T-slot cutter or thread mill cuts: switch to the volume (E) to see them.
 
 The simulator remembers the speed step, the smoothness slider, minimal mode, the last view, the
 folded panels and its settings between runs.
+
+**3D mouse.** A 3Dconnexion SpaceMouse moves the view while the simulator's window is in front:
+on Windows the simulator reads the device itself (raw HID input, beside 3DxWare), on Linux it
+takes it from spacenavd (the daemon FreeCAD uses there). Two lines in the simulator's settings
+file (`%APPDATA%\BearCAM\Simulator\settings.txt`, or `~/.config/bearcam-simulator/settings.txt`)
+tune it: `spacemouse_speed=1` (0 turns it off) and `spacemouse_invert=` followed by any of
+`x y z rx ry rz` for the axes that move the wrong way for you.

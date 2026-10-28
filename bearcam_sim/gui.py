@@ -2,7 +2,8 @@
 # by the post commands). It takes the active job (the selected one, the only one, or the one the
 # user picks), posts it with the job's post processor (or one the user picks for a job that names
 # none), writes the job file and opens the viewer; run again, it re-posts and the open viewer
-# reads the job again.
+# reads the job again. The first time for a job it asks which machine to show it on (none, the
+# Makera Carvera Air, the PrintNC V4), remembered; "BearCAM simulator machine..." changes that.
 import os
 import traceback
 
@@ -14,6 +15,7 @@ from . import jobmap, prefs, viewer
 from .jobmap import SimError
 
 COMMAND = "BearCAM_Simulate"
+MACHINE_COMMAND = "BearCAM_SimulatorMachine"
 TITLE = "Simulate in BearCAM"
 ICON = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Resources", "icons",
                     "BearCAMSimulate.png")
@@ -49,7 +51,9 @@ def choose_post(doc, job):
         return remembered
     import Path
 
-    posts = Path.Preferences.allEnabledLegacyPostProcessors()
+    # FreeCAD 1.2 keeps the script posts apart from its machine posts; 1.0 and 1.1 have only those.
+    enabled = getattr(Path.Preferences, "allEnabledLegacyPostProcessors", None) or Path.Preferences.allEnabledPostProcessors
+    posts = enabled()
     if not posts:
         raise SimError("No post processor is enabled (Edit > Preferences > CAM).")
     default = Path.Preferences.defaultPostProcessor() or ""
@@ -62,6 +66,29 @@ def choose_post(doc, job):
         return None
     prefs.set_post_choice(doc, job, item)
     return item
+
+
+def choose_machine(doc, job, ask=False):
+    """The machine to show the job on (an id, "" for none): the one chosen for it before, else (or
+    when asked) the user's pick, preselected from the job's own machine and remembered for the
+    job. None if the user cancels."""
+    remembered = prefs.machine_choice(doc, job)
+    if remembered is not None and not ask:
+        return remembered
+    ids = [m for m, _ in jobmap.MACHINES]
+    labels = [label for _, label in jobmap.MACHINES]
+    current = remembered if remembered is not None else jobmap.machine_guess(job)
+    item, ok = QtGui.QInputDialog.getItem(
+        main_window(), TITLE,
+        f'Show the job "{job.Label}" on a machine in the simulator?\n'
+        "Its frame, gantry and spindle move with the tool round the stock (3-axis jobs).\n"
+        "(Remembered for this job; CAM > BearCAM simulator machine... changes it.)",
+        labels, ids.index(current) if current in ids else 0, False)
+    if not ok:
+        return None
+    choice = ids[labels.index(item)]
+    prefs.set_machine_choice(doc, job, choice)
+    return choice
 
 
 def ensure_viewer():
@@ -138,12 +165,15 @@ class SimulateCommand:
             post = choose_post(doc, job)
             if post is None:
                 return
+            machine = choose_machine(doc, job)
+            if machine is None:
+                return
             exe = ensure_viewer()
             if exe is None:
                 return
             QtGui.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
             try:
-                job_path, summary = jobmap.prepare(job, post, prefs.rapid_rate())
+                job_path, summary = jobmap.prepare(job, post, prefs.rapid_rate(), machine=machine)
                 pid, started = viewer.launch(exe, job_path)
             finally:
                 QtGui.QApplication.restoreOverrideCursor()
@@ -157,11 +187,43 @@ class SimulateCommand:
                                        "details.)")
 
 
+class MachineCommand:
+    """Chooses again the machine the simulator shows the active job on."""
+
+    def GetResources(self):
+        return {
+            "Pixmap": ICON,
+            "MenuText": "BearCAM simulator machine...",
+            "ToolTip": "Choose the machine the BearCAM simulator shows the active job on (the Makera Carvera Air, "
+                       "the PrintNC V4, or none). Simulate in BearCAM then uses it.",
+        }
+
+    def IsActive(self):
+        return bool(jobmap.jobs_in(FreeCAD.ActiveDocument))
+
+    def Activated(self):
+        doc = FreeCAD.ActiveDocument
+        try:
+            job = choose_job(doc)
+            if job is None:
+                return
+            machine = choose_machine(doc, job, ask=True)
+            if machine is not None:
+                FreeCAD.Console.PrintMessage(f'{doc.Label}: {job.Label} is shown on: {jobmap.machine_label(machine)} '
+                                             "(from the next Simulate in BearCAM)\n")
+        except SimError as e:
+            QtGui.QMessageBox.warning(main_window(), TITLE, str(e))
+
+
 class Manipulator:
-    """Puts the command by the CAM workbench's post commands: its menu and Project Setup toolbar."""
+    """Puts the commands by the CAM workbench's post commands: its menu (simulate, then the
+    machine) and the Project Setup toolbar (simulate)."""
 
     def modifyMenuBar(self):
-        return [{"insert": COMMAND, "menuItem": "CAM_PostSelected", "after": ""}]
+        # After Post Process Selected, or after Post Process where there is none (FreeCAD 1.0, 1.1).
+        after = "CAM_PostSelected" if "CAM_PostSelected" in FreeCADGui.listCommands() else "CAM_Post"
+        return [{"insert": MACHINE_COMMAND, "menuItem": after, "after": ""},
+                {"insert": COMMAND, "menuItem": after, "after": ""}]
 
     def modifyToolBars(self):
         # The workbench being set up, by its class (its name() is not ready while it activates).
@@ -172,6 +234,7 @@ class Manipulator:
 
 def register():
     FreeCADGui.addCommand(COMMAND, SimulateCommand())
+    FreeCADGui.addCommand(MACHINE_COMMAND, MachineCommand())
     if hasattr(FreeCADGui, "addWorkbenchManipulator") and not getattr(FreeCADGui, "BearCAMSimManipulator", None):
         FreeCADGui.BearCAMSimManipulator = Manipulator()
         FreeCADGui.addWorkbenchManipulator(FreeCADGui.BearCAMSimManipulator)

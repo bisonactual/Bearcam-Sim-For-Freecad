@@ -22,7 +22,9 @@
                         "x": {"$ref": "#/$defs/xy"}, "radius": {"type": "number", "exclusiveMinimum": 0}}},
         {"type": "object", "required": ["kind", "profile"],
          "properties": {"kind": {"const": "revolved"}, "axis": {"const": "z"}, "center": {"$ref": "#/$defs/xy"},
-                        "profile": {"type": "array", "minItems": 3, "maxItems": 32, "items": {"$ref": "#/$defs/xy"}}}}
+                        "profile": {"type": "array", "minItems": 3, "maxItems": 32, "items": {"$ref": "#/$defs/xy"}}}},
+        {"type": "object", "required": ["kind", "file"],
+         "properties": {"kind": {"const": "mesh"}, "file": {"type": "string"}}}
       ]
     },
     "tools": {
@@ -33,7 +35,8 @@
         "required": ["number", "kind", "diameter"],
         "properties": {
           "number": {"type": "integer", "minimum": 0},
-          "kind": {"enum": ["flat", "ball", "bull", "chamfer", "vbit", "taperball", "tslot", "threadmill"]},
+          "kind": {"enum": ["flat", "reamer", "ball", "bull", "chamfer", "vbit", "taper", "countersink", "taperball",
+                            "tslot", "threadmill", "dovetail", "lollipop", "profile", "dragknife"]},
           "diameter": {"type": "number", "exclusiveMinimum": 0},
           "name": {"type": "string"},
           "flute_length": {"type": "number", "minimum": 0},
@@ -45,7 +48,9 @@
           "neck_diameter": {"type": "number", "exclusiveMinimum": 0},
           "neck_length": {"type": "number", "minimum": 0},
           "shank_diameter": {"type": "number", "minimum": 0},
-          "cone": {"type": "number", "minimum": 0}
+          "cone": {"type": "number", "minimum": 0},
+          "profile": {"type": "array", "minItems": 2, "maxItems": 64, "items": {"$ref": "#/$defs/xy"}},
+          "blade_offset": {"type": "number", "minimum": 0, "maximum": 100}
         }
       }
     },
@@ -59,6 +64,7 @@
                                "tool": {"type": "integer"}}}
     },
     "engine": {"enum": ["hf", "rhf", "vol"]},
+    "router": {"type": "string", "pattern": "^[a-z0-9-]{1,64}$"},
     "voxel": {"type": "number", "exclusiveMinimum": 0},
     "source": {"type": "object"}
   },

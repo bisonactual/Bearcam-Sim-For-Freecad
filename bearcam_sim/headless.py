@@ -4,6 +4,7 @@
 #   set BEARCAM_POST=linuxcnc                   the post for jobs that name none (else they are refused)
 #   set BEARCAM_POST_FORCE=linuxcnc             override a legacy job's post (machines keep their own)
 #   set BEARCAM_OUT=folder                      where each job's folder goes (default: FreeCAD's cache folder)
+#   set BEARCAM_MACHINE=carvera-air             the machine to show jobs on (carvera-air, printnc-v4; default none)
 #   set BEARCAM_VIEWER=folder                   with BEARCAM_LAUNCH=1, the viewer to open each job in
 #   freecadcmd path\to\bearcam_sim\headless.py
 # Prints one line per job: what was written, or why it was refused.
@@ -32,7 +33,8 @@ def main():
             if not post:
                 raise jobmap.SimError(f'The job "{job.Label}" names no post processor (set BEARCAM_POST).')
             folder = jobmap.job_folder(doc, job, out) if out else None
-            path, summary = jobmap.prepare(job, post, float(os.environ.get("BEARCAM_RAPID", "5000")), folder)
+            path, summary = jobmap.prepare(job, post, float(os.environ.get("BEARCAM_RAPID", "5000")), folder,
+                                           os.environ.get("BEARCAM_MACHINE", ""))
             lines.append("OK " + summary)
             if os.environ.get("BEARCAM_LAUNCH") == "1":
                 exe = viewer.find(os.environ.get("BEARCAM_VIEWER", ""), FreeCAD.getUserAppDataDir())

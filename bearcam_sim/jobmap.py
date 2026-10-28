@@ -152,53 +152,96 @@ def stock_kind(stock):
     return {"StockFromBase": "FromBase", "StockCreateBox": "CreateBox", "StockCreateCylinder": "CreateCylinder"}.get(proxy, "")
 
 
+STOCK_MESH = "stock.stl"
+
+
 def stock_of(job):
-    """The job's stock for the viewer: FromBase and CreateBox give a box, CreateCylinder a
-    cylinder about Z or a bar along X (by its axis). An existing solid is not supported yet."""
+    """The job's stock for the viewer, and the solid to send as a mesh (else None): FromBase and
+    CreateBox give a box, CreateCylinder a cylinder about Z or a bar along X (by its axis). Any
+    other stock (an existing solid, a box turned off the axes, a cylinder along Y or at an angle)
+    goes as a mesh of its solid."""
     stock = job.Stock
     kind = stock_kind(stock)
     shape = stock.Shape
     bb = shape.BoundBox
     if kind in ("FromBase", "CreateBox"):
         box_volume = bb.XLength * bb.YLength * bb.ZLength
-        if box_volume <= 0 or abs(shape.Volume - box_volume) > 1e-6 * box_volume:
-            raise SimError("The stock box is turned off the X, Y and Z axes: not supported yet.")
-        return {"kind": "box", "min": [bb.XMin, bb.YMin, bb.ZMin], "max": [bb.XMax, bb.YMax, bb.ZMax]}
-    if kind == "CreateCylinder":
+        if box_volume > 0 and abs(shape.Volume - box_volume) <= 1e-6 * box_volume:
+            return {"kind": "box", "min": [bb.XMin, bb.YMin, bb.ZMin], "max": [bb.XMax, bb.YMax, bb.ZMax]}, None
+    elif kind == "CreateCylinder":
         faces = [f for f in shape.Faces if type(f.Surface).__name__ == "Cylinder"]
-        if len(faces) != 1:
-            raise SimError("The cylinder stock's shape is not a plain cylinder: not supported yet.")
-        surf = faces[0].Surface
-        axis, centre, radius = surf.Axis, surf.Center, surf.Radius
-        if abs(abs(axis.z) - 1) < 1e-6:
-            return {"kind": "cylinder", "axis": "z", "center": [centre.x, centre.y], "z": [bb.ZMin, bb.ZMax],
-                    "radius": radius}
-        if abs(abs(axis.x) - 1) < 1e-6:
-            return {"kind": "bar", "axis": "x", "x": [bb.XMin, bb.XMax], "center": [centre.y, centre.z],
-                    "radius": radius}
-        raise SimError("The cylinder stock lies along Y or at an angle: only Z (a cylinder) and X (a bar) are "
-                       "supported yet.")
-    raise SimError("Stock from an existing solid is not supported yet: choose a box or a cylinder in the Job's "
-                   "Stock settings.")
+        if len(faces) == 1:
+            surf = faces[0].Surface
+            axis, centre, radius = surf.Axis, surf.Center, surf.Radius
+            if abs(abs(axis.z) - 1) < 1e-6:
+                return {"kind": "cylinder", "axis": "z", "center": [centre.x, centre.y], "z": [bb.ZMin, bb.ZMax],
+                        "radius": radius}, None
+            if abs(abs(axis.x) - 1) < 1e-6:
+                return {"kind": "bar", "axis": "x", "x": [bb.XMin, bb.XMax], "center": [centre.y, centre.z],
+                        "radius": radius}, None
+    if not shape.Solids:
+        raise SimError("The stock is not a solid (a closed shape): choose a box, a cylinder or a solid in the Job's "
+                       "Stock settings.")
+    return {"kind": "mesh", "file": STOCK_MESH}, shape
+
+
+def write_stock_mesh(shape, path):
+    """The stock solid as an STL, its faces within 0.05 mm (finer on small stock) of the solid's."""
+    import MeshPart
+
+    deflection = min(0.05, max(0.005, shape.BoundBox.DiagonalLength * 1e-4))
+    try:
+        mesh = MeshPart.meshFromShape(Shape=shape, LinearDeflection=deflection, AngularDeflection=0.1, Relative=False)
+    except Exception as e:
+        raise SimError(f"The stock solid could not be meshed for the simulator: {e}") from e
+    if mesh.CountFacets < 4 or mesh.CountFacets > 4000000:
+        raise SimError(f"The stock solid meshed to {mesh.CountFacets} triangles: the simulator takes 4 to 4 million.")
+    tmp = path[:-4] + ".tmp.stl"  # the extension picks the format
+    mesh.write(tmp)
+    os.replace(tmp, path)
 
 
 # ---- Tools
 
 
-# FreeCAD's bit shapes (ShapeID) and the viewer's cutters. A drill (or spot drill) is the
-# viewer's cone-point cutter at its tip angle (owner, 22 Oct).
+# FreeCAD's bit shapes (ShapeID, with FreeCAD's aliases and drill subtypes) and the viewer's
+# cutters. A drill (or spot drill) is the viewer's cone-point cutter at its tip angle (owner,
+# 22 Oct). Shapes FreeCAD does not ship (custom shapes) are known by name: lollipop,
+# countersink, drag knife. Any other bit that cuts is measured: its solid's outline, from the
+# tip up, sent as the viewer's profile cutter.
 SHAPES = {
     "endmill": "flat",
     "ballend": "ball",
     "bullnose": "bull",
+    "torus": "bull",
     "v-bit": "chamfer",
     "vbit": "chamfer",
+    "v_bit": "chamfer",
     "chamfer": "chamfer",
     "drill": "drill",
+    "jobber": "drill",
+    "stub": "drill",
+    "spot": "drill",
+    "center": "drill",
+    "brad_point": "drill",
     "tslotmill": "tslot",
     "thread-mill": "threadmill",
     "threadmill": "threadmill",
+    "thread_mill": "threadmill",
+    "dovetail": "dovetail",
+    "reamer": "reamer",
+    "taperedballnose": "taperball",
+    "taperballnose": "taperball",
+    "conicalballnose": "taperball",
+    "lollipop": "lollipop",
+    "countersink": "countersink",
+    "dragknife": "dragknife",
+    "drag-knife": "dragknife",
+    "drag_knife": "dragknife",
 }
+NOT_CUTTING = ("probe",)
+KERF = 0.25  # a drag knife's cut as drawn (mm), unless its bit is narrower
+MAX_PROFILE_POINTS = 64  # the viewer's limit
 
 
 def shape_id(bit):
@@ -233,17 +276,116 @@ def tslot_cone(bit, cut_top, shank_r):
         return 0.0
 
 
-def tool_of(tc):
-    """A tool controller's bit as the viewer's tool, or SimError naming the shape."""
+def thinned(points, tolerance):
+    """The polyline's points that keep it within `tolerance` of itself (Douglas-Peucker)."""
+    keep = [False] * len(points)
+    keep[0] = keep[-1] = True
+    todo = [(0, len(points) - 1)]
+    while todo:
+        i0, i1 = todo.pop()
+        (ar, az), (br, bz) = points[i0], points[i1]
+        dr, dz = br - ar, bz - az
+        length = (dr * dr + dz * dz) ** 0.5
+        worst, at = 0.0, 0
+        for i in range(i0 + 1, i1):
+            r, z = points[i]
+            if length > 0:
+                t = max(0.0, min(1.0, ((r - ar) * dr + (z - az) * dz) / (length * length)))
+                e = ((r - ar - t * dr) ** 2 + (z - az - t * dz) ** 2) ** 0.5
+            else:
+                e = ((r - ar) ** 2 + (z - az) ** 2) ** 0.5
+            if e > worst:
+                worst, at = e, i
+        if worst > tolerance:
+            keep[at] = True
+            todo += [(i0, at), (at, i1)]
+    return [p for p, k in zip(points, keep) if k]
+
+
+def measured_profile(bit):
+    """The bit's outline from its solid (FreeCAD stands it on its tip at the origin, about Z): the
+    section through its axis, from the tip up its right side to the top, as (r, z) points with z
+    never falling, within 2 um of the section. None when the solid gives no such outline."""
+    try:
+        shape = bit.Shape
+        if shape is None or shape.isNull() or not shape.Solids:
+            return None
+        bb = shape.BoundBox
+        wires = shape.slice(FreeCAD.Vector(0, 1, 0), 0.0)
+        if len(wires) != 1:
+            return None
+        pts = [(p.x, p.z) for p in wires[0].discretize(Deflection=0.001)]
+    except Exception:
+        return None
+    if len(pts) < 4:
+        return None
+    if pts[0] == pts[-1]:
+        pts.pop()
+    n = len(pts)
+    # Where the section crosses the axis: the lowest crossing is the tip, the highest the top.
+    crossings = []
+    for i in range(n):
+        (x0, z0), (x1, z1) = pts[i], pts[(i + 1) % n]
+        if abs(x0) < 1e-7:
+            crossings.append((z0, i))
+        elif (x0 > 0) != (x1 > 0) and abs(x1) >= 1e-7:
+            crossings.append((z0 + (z1 - z0) * x0 / (x0 - x1), i))
+    if len(crossings) < 2:
+        return None
+    (z_tip, i_tip), (z_top, i_top) = min(crossings), max(crossings)
+    if i_tip == i_top:
+        return None
+    # The two ways round from the tip to the top; the right side is the one at positive x.
+    one = [pts[(i_tip + 1 + k) % n] for k in range((i_top - i_tip) % n)]
+    other = [pts[(i_top + 1 + k) % n] for k in range((i_tip - i_top) % n)][::-1]
+    side = max(one, other, key=lambda c: sum(x for x, _ in c) / max(len(c), 1))
+    if not side or min(x for x, _ in side) < -1e-6:
+        return None
+    out = [(0.0, 0.0)]
+    for x, z in side:
+        z = max(z - z_tip, out[-1][1])  # z never falls (a hair of rounding aside)
+        if x > 1e-7:
+            out.append((x, z))
+    if len(out) < 2 or z_top - bb.ZMin <= 0:
+        return None
+    tolerance = 0.002
+    prof = thinned(out, tolerance)
+    while len(prof) > MAX_PROFILE_POINTS:
+        tolerance *= 1.5
+        prof = thinned(out, tolerance)
+    return [[round(r, 6), round(z, 6)] for r, z in prof]
+
+
+def tool_of(tc, blade=None):
+    """A tool controller's bit as the viewer's tool, or SimError naming the shape. `blade`: the
+    blade offset when the operation is dressed as a drag knife's."""
     bit = tc.Tool
     number = int(tc.ToolNumber)
     sid = shape_id(bit)
-    kind = SHAPES.get(sid)
     label = getattr(bit, "Label", "") or getattr(tc, "Label", "")
-    if kind is None:
-        known = "endmill, ballend, bullnose, v-bit, chamfer, drill, tslotmill, thread-mill"
-        raise SimError(f'T{number} "{label}" is a "{sid or "unknown"}" bit: the simulator draws {known} so far.')
+    if sid in NOT_CUTTING:
+        raise SimError(f'T{number} "{label}" is a "{sid}" bit: it does not cut, so there is nothing to simulate.')
+    kind = "dragknife" if blade is not None else SHAPES.get(sid)
     d = value(bit, "Diameter", 0.0)
+
+    def measured(why=""):
+        prof = measured_profile(bit)
+        if prof is None:
+            raise SimError(f'T{number} "{label}" is a "{sid or "unknown"}" bit{why}, and its solid gives no outline to '
+                           "simulate (a solid turned about Z, on its tip).")
+        t = {"number": number, "kind": "profile", "diameter": 2 * max(r for r, _ in prof), "profile": prof,
+             "name": label}
+        flute = value(bit, "CuttingEdgeHeight")
+        if flute:
+            t["flute_length"] = flute
+        return t
+
+    if kind is None:
+        return measured()
+    if kind == "dragknife":
+        offset = blade if blade is not None else value(bit, "BladeOffset", value(bit, "Offset", 0.0))
+        return {"number": number, "kind": "dragknife", "diameter": d if 0 < d < KERF else KERF,
+                "blade_offset": max(0.0, offset or 0.0), "name": label}
     if not d or d <= 0:
         raise SimError(f'T{number} "{label}" has no diameter.')
     t = {"number": number, "kind": kind, "diameter": d, "name": label}
@@ -258,12 +400,18 @@ def tool_of(tc):
         if corner is None:
             raise SimError(f'T{number} "{label}" (bullnose) has no corner radius.')
         t["corner_radius"] = corner
-    elif kind == "chamfer":
-        t["angle"] = value(bit, "CuttingEdgeAngle", 90.0)
+    elif kind in ("chamfer", "countersink"):
+        t["angle"] = value(bit, "CuttingEdgeAngle", value(bit, "TipAngle", 90.0))
         t["tip_diameter"] = value(bit, "TipDiameter", 0.0)
     elif kind == "drill":
         t.update({"kind": "chamfer", "angle": value(bit, "TipAngle", 118.0), "tip_diameter": 0.0})
         t.pop("flute_length", None)
+    elif kind == "taperball":
+        # FreeCAD's TaperedBallNose: Diameter is the ball's; the taper widens to TaperDiameter.
+        top = value(bit, "TaperDiameter", 0.0)
+        if not top or top <= d:
+            return measured(" without a taper diameter wider than its ball")
+        t.update({"diameter": top, "angle": value(bit, "TaperAngle", 0.0), "tip_diameter": d})
     elif kind == "tslot":
         height = value(bit, "CuttingEdgeHeight", 0.0)
         neck_d, neck_len, shank_d = value(bit, "NeckDiameter", 0.0), value(bit, "NeckLength", 0.0), value(bit, "ShankDiameter", 0.0)
@@ -275,17 +423,56 @@ def tool_of(tc):
                   "neck_diameter": value(bit, "NeckDiameter", 0.0), "neck_length": value(bit, "NeckLength", 0.0),
                   "shank_diameter": value(bit, "ShankDiameter", 0.0)})
         t.pop("flute_length", None)
+    elif kind == "dovetail":
+        # FreeCAD's dovetail: Diameter at the tip, its flank at CuttingEdgeAngle to the bottom face up
+        # to CuttingEdgeHeight, the neck (NeckHeight) measured from there.
+        neck_d = value(bit, "NeckDiameter", 0.0)
+        height = value(bit, "CuttingEdgeHeight", 0.0)
+        if not neck_d or not height:
+            return measured(" without a neck diameter and cutting height")
+        t.update({"angle": value(bit, "CuttingEdgeAngle", 60.0), "height": height, "neck_diameter": neck_d,
+                  "neck_length": value(bit, "NeckHeight", value(bit, "NeckLength", 0.0)),
+                  "shank_diameter": value(bit, "ShankDiameter", 0.0)})
+        t.pop("flute_length", None)
+    elif kind == "lollipop":
+        # A ball on a narrower neck; the neck's length is its reach from the tip.
+        neck_d = value(bit, "NeckDiameter", 0.0)
+        if not neck_d or neck_d >= d:
+            return measured(" without a neck diameter narrower than its ball")
+        t.update({"neck_diameter": neck_d, "neck_length": value(bit, "NeckLength", value(bit, "NeckHeight", 0.0)),
+                  "shank_diameter": value(bit, "ShankDiameter", 0.0)})
+        t.pop("flute_length", None)
     return t
+
+
+def drag_knife_offset(op):
+    """The blade offset when the operation is dressed for a drag knife (FreeCAD's Dragknife
+    dressup: offset, pivotheight, filterAngle), on it or on a dressup under it; else None."""
+    obj, seen = op, 0
+    while obj is not None and seen < 20:
+        if all(hasattr(obj, p) for p in ("offset", "pivotheight", "filterAngle")):
+            return value(obj, "offset", 0.0)
+        obj = getattr(obj, "Base", None)
+        obj = obj if hasattr(obj, "Path") else None
+        seen += 1
+    return None
 
 
 def tools_of(ops):
     """The tools the active operations use, one per T number (two different bits under one
     number are refused)."""
+    # A tool controller any operation dresses for a drag knife is a drag knife's, in all its
+    # operations (FreeCAD keeps the dressed operation in the job beside its dressup).
+    blades = {}
+    for op, tc in ops:
+        offset = drag_knife_offset(op)
+        if tc is not None and offset is not None:
+            blades[tc.Name] = offset
     tools = {}
     for op, tc in ops:
         if tc is None:
             continue
-        t = tool_of(tc)
+        t = tool_of(tc, blades.get(tc.Name))
         old = tools.get(t["number"])
         if old is not None:
             same = {k: v for k, v in old.items() if k != "name"} == {k: v for k, v in t.items() if k != "name"}
@@ -410,6 +597,29 @@ def operation_lines(nc, ops):
     return out
 
 
+# ---- The machine round the stock
+
+
+# The machines the simulator can draw round a 3-axis job (its machines/ID.json), by id; "" for
+# none. Shown as the router's frame, gantry and spindle, moving with the tool: display only.
+MACHINES = [("", "None (the stock alone)"), ("carvera-air", "Makera Carvera Air"), ("printnc-v4", "PrintNC V4")]
+
+
+def machine_label(machine_id):
+    return dict(MACHINES).get(machine_id, machine_id)
+
+
+def machine_guess(job):
+    """The simulator's machine for a job whose FreeCAD machine (FreeCAD 1.2's Job.Machine) names
+    one, else ""."""
+    name = str(getattr(job, "Machine", "") or "").lower().replace(" ", "")
+    if "carvera" in name:
+        return "carvera-air"
+    if "printnc" in name:
+        return "printnc-v4"
+    return ""
+
+
 # ---- The hand-off
 
 
@@ -460,15 +670,19 @@ def job_text(data):
                        "Job's stock and the tool bits' sizes.") from e
 
 
-def prepare(job, post_name, rapid_mm_min=5000.0, folder=None):
-    """Posts the job and writes its program and job file. Returns (job file, a summary line)."""
+def prepare(job, post_name, rapid_mm_min=5000.0, folder=None, machine=""):
+    """Posts the job and writes its program and job file, on `machine` (an id from MACHINES; ""
+    for none). Returns (job file, a summary line)."""
+    if machine not in dict(MACHINES):
+        raise SimError(f'The simulator has no machine "{machine}" (it draws: '
+                       f'{", ".join(m for m in dict(MACHINES) if m)}).')
     doc = job.Document
     fixtures = list(getattr(job, "Fixtures", []) or [])
     if len(fixtures) > 1:
         raise SimError(f"This job has several work offsets ({', '.join(fixtures)}): the simulator shows one setup per "
                        "job.")
     ops = operations(job)
-    stock = stock_of(job)
+    stock, stock_solid = stock_of(job)
     tools = tools_of(ops)
     post_name = machine_post(job) or post_name
     posted = post_job(job, post_name)
@@ -477,6 +691,8 @@ def prepare(job, post_name, rapid_mm_min=5000.0, folder=None):
     os.makedirs(folder, exist_ok=True)
     nc_path = os.path.join(folder, "program.nc")
     job_path = os.path.join(folder, "job.json")
+    if stock_solid is not None:
+        write_stock_mesh(stock_solid, os.path.join(folder, STOCK_MESH))
     data = {
         "format": FORMAT,
         "version": VERSION,
@@ -492,11 +708,17 @@ def prepare(job, post_name, rapid_mm_min=5000.0, folder=None):
         "source": {"document": doc.FileName, "job": job.Name, "post_processor": post_name,
                    "posted_nc": "posted.nc"},
     }
+    on = ""
+    if machine and data["rotary"]:
+        on = f", without the {machine_label(machine)} (a machine is drawn round 3-axis jobs only)"
+    elif machine:
+        data["router"] = machine
+        on = f", on the {machine_label(machine)}"
     text = job_text(data)
     # The program first, then the job file: the viewer reads both once they stand still.
     write_atomic(os.path.join(folder, "posted.nc"), posted)
     write_atomic(nc_path, nc)
     write_atomic(job_path, text)
     summary = (f"{doc.Label}: {job.Label} posted with {post_name}: {len(nc.splitlines())} lines, "
-               f"{len(tools)} tools, {stock['kind']} stock -> {job_path}")
+               f"{len(tools)} tools, {stock['kind']} stock{on} -> {job_path}")
     return job_path, summary
