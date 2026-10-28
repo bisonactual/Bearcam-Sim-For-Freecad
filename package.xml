@@ -11,9 +11,11 @@
   <url type="repository" branch="main">https://github.com/bisonactual/Bearcam-Sim-For-Freecad</url>
   <icon>Resources/icons/BearCAMSimulate.png</icon>
   <freecadmin>1.0.0</freecadmin>
-  <!-- A workbench item (without a class: the add-on adds commands to CAM): FreeCAD 1.0 and 1.1
-       run InitGui.py only for workbench items, so as "other" content its commands never
-       appeared there; 1.2 and 26.3 run it either way. -->
+  <!-- A workbench item without a class: the add-on adds commands to CAM and has no workbench of
+       its own. FreeCAD 1.0 and 1.1 run InitGui.py only for workbench items, so as "other" content
+       its commands never appeared there; 1.2 and 26.3 run it either way. The Addon Manager (1.1,
+       1.2) takes the add-on's own name when there is no class, marks the install "restart
+       required", and disables it by its ADDON_DISABLED stop file. -->
   <content>
     <workbench>
       <name>BearCAM Simulator</name>

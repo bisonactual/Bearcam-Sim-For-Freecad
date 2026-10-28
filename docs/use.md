@@ -3,21 +3,31 @@
 ## Simulate in BearCAM
 
 In the CAM workbench, select a job (or anything in it) and click **Simulate in BearCAM**: it is on
-the *Project Setup* toolbar and in the *CAM* menu, after *Post Process Selected*. With one job in
-the document there is nothing to select; with several, it asks which.
+the *Project Setup* toolbar and in the *CAM* menu, after *Post Process Selected* (after *Post
+Process* in FreeCAD 1.0 and 1.1). With one job in the document there is nothing to select; with
+several, it asks which.
 
-1. **Post.** A job with a machine uses that machine's post processor, settings and the job's
-   property overrides, through FreeCAD's machine-post export. This takes precedence over a
-   legacy or remembered post choice. A job without a machine uses its legacy post; if it names
-   none, the command asks which legacy post to use and remembers it. No G-code editor or remote
-   upload runs for machine posts. A job posted as several files is played as one program, in order.
-2. **Machine.** The first time for a job, the command asks which machine to show it on: *None*,
-   the *Makera Carvera Air* or the *PrintNC V4* (see [Machine](#machine)), and remembers it for that
-   job.
-3. **Describe.** The stock, the tools, the work offset, the operations and the machine go into a
-   job file next to the program ([the job file](../schema/job-v1.md)).
-4. **Play.** The simulator opens in its own window. Change the job and click the command again: the
-   open simulator reads the job again and keeps its view.
+The first time, in this order:
+
+1. **Post processor**, only for a job with neither a machine nor a post processor of its own: the
+   command asks which legacy post to use and remembers it for that job (a post processor set on
+   the job later is used instead). A job with a machine (FreeCAD 26.3) always uses that machine's
+   post processor, settings and the job's property overrides, through FreeCAD's machine-post
+   export; this takes precedence over a legacy or remembered post choice.
+2. **Machine**, the first time for each job: which machine to show it on, *None*, the *Makera
+   Carvera Air* or the *PrintNC V4* (see [Machine](#machine)); remembered for that job.
+3. **Download**, the first time ever: the add-on offers to download the simulator (about 11 MB)
+   and checks it against the SHA-256 it pins before using it, or lets you choose a folder that
+   holds one ([installing](install.md)).
+4. **Post and describe.** The job is posted (no G-code editor opens, and no remote upload runs for
+   machine posts; a job posted as several files plays as one program, in order) and the stock, the
+   tools, the work offset, the operations and the machine go into a job file next to the program
+   ([the job file](../schema/job-v1.md)).
+5. **Play.** The simulator opens in its own window, on its start screen: tick *Minimal mode* for a
+   graphics card with 2-4 GB, then *Start*.
+
+After that, a click only posts and plays. Change the job and click again: the open simulator reads
+the job again and keeps its view.
 
 The command refuses, with the reason, a job it cannot show yet: several work offsets, a bit that
 does not cut (a probe) or whose solid gives no outline, or G-code it does not read
@@ -49,7 +59,8 @@ From the Job's Stock settings:
 A 3-axis job can be shown on a machine: the simulator draws it round the stock, its moving parts
 following the tool, with the stock in the middle of its bed. **M** shows or hides the machine (F
 fits the whole machine while it shows), **D** shows or hides its dust shoe, and **V** sees through
-its moving parts; the simulator remembers them. Nothing on the screen names these keys: **?** lists
+its moving parts; the simulator remembers them. On a machine with a dust shoe (the Carvera Air), D
+no longer folds the DRO: fold it with the button on its title bar. Nothing on the screen names these keys: **?** lists
 them. Display only: the machine never cuts and is never checked for collisions.
 
 - **Makera Carvera Air:** its table moves in Y and its spindle in X and Z (on the screen the stock
@@ -157,14 +168,14 @@ volume.
 | F | fit the view to the stock (to the whole machine while one shows) |
 | E | next engine |
 | M | show / hide the machine (a job shown on one); machine view / part view (rotary programs) |
-| D | show / hide the machine's dust shoe (a job on a machine with one) |
+| D | on a machine with a dust shoe: show / hide the dust shoe; otherwise fold the DRO |
 | T | toolpath on / off |
 | G | cutter on / off |
 | C | colours: by tool, recent cuts, by move order |
 | A | exact surfaces / plain height field (comparison) |
 | O | shading |
 | S | how often the stock follows the cutter (as the slider) |
-| D, L | fold the DRO (but see D above), the G-code pane |
+| L | fold the G-code pane (the DRO and the pane also fold with the buttons on their title bars) |
 | P | settings (as the Settings button) |
 | I | hide all text (the picture and the timeline only) |
 | H or ? | the help |

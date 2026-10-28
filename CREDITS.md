@@ -6,6 +6,21 @@
   `msvcp140_2.dll`, `vcruntime140.dll`, `vcruntime140_1.dll`. Copyright Microsoft Corporation;
   redistributed unmodified as "distributable code" under the Microsoft Visual Studio licence
   terms. They are not covered by this project's licences.
+- **The PrintNC V4 machine model**: `machines/printnc-clean.glb` and `machines/printnc-v4.json`, a
+  model of the PrintNC V4 CNC router, adapted from the PrintNC design by the PrintNC project
+  (https://github.com/threedesigns/printNC, https://wiki.printnc.info), which is licensed under the
+  Creative Commons Attribution 4.0 International licence (CC BY 4.0,
+  https://creativecommons.org/licenses/by/4.0/). Changes made by Bearcam.io: the design's assembly
+  simplified for display (fasteners, sensors and cable supports removed), its parts grouped by the
+  axis that moves them, coloured, and converted to a glTF mesh. This adapted model is also licensed
+  under CC BY 4.0, not under the BearCAM simulator's licence, and is provided as is, without
+  warranties (see the licence). The PrintNC project has not endorsed this model or the BearCAM
+  simulator.
+- **The Makera Carvera Air machine model**: `machines/carvera-air.glb` and
+  `machines/carvera-air.json`, an independent reference model of the Makera Carvera Air, drawn by
+  Bearcam.io from Makera's published dimensions and product photographs; not factory CAD.
+  Independent reference model; not affiliated with or endorsed by Makera. Makera and Carvera are
+  trademarks of their owner, used only to say which machine the model depicts.
 
 Nothing else from a third party is compiled into the simulator. It uses the system's OpenGL
 driver and, on Linux, the system's X11 libraries, which are not distributed with it.

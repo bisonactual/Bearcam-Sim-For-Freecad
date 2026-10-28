@@ -4,13 +4,13 @@
   "files": {
     "windows-x86_64": {
       "name": "bearcam-simulator-0.6.0-windows-x86_64.zip",
-      "sha256": "67e23e62114121527a137733231bb17207b50a22be10b6c14ae62e7f46b37ae0",
-      "size": 11422122
+      "sha256": "30d5a534bf08104e76e399650a0e89541aab950045fcc1e54fef6d13536a4a32",
+      "size": 11422883
     },
     "linux-x86_64": {
       "name": "bearcam-simulator-0.6.0-linux-x86_64.tar.gz",
-      "sha256": "3c5f3845ddcef7468a97dbc9f5f61f22c117f79d2a76b68f7d5cffe6f3ea99a8",
-      "size": 11361001
+      "sha256": "c326c0b38278ddd88b15d14f054d5258173c5ddd23532c52f01e453772345ad4",
+      "size": 11360839
     }
   }
 }
