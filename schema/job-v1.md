@@ -57,7 +57,7 @@ document as it is.
 | `cylinder` | About Z: `axis: "z"`, `center: [x, y]`, `z: [bottom, top]`, `radius`. |
 | `bar` | Along X, for 4-axis work: `axis: "x"`, `x: [left, right]`, `center: [y, z]`, `radius`. In a program with A motion its axis must be the A axis (`center` 0, 0). |
 | `revolved` | A turned blank about Z: `axis: "z"`, `profile: [[r, z], ...]` (3 to 32 points, in order), `center: [x, y]`. |
-| `mesh` | Any other shape: `file`, a closed STL (binary or ASCII, at most 4 million triangles) relative to the job file, in the program's coordinates as a box's corners are. The add-on writes the stock solid as `stock.stl`. |
+| `mesh` | Any other shape: `file`, a closed STL (binary or ASCII, at most 4 million triangles) relative to the job file, in the program's coordinates as a box's corners are. The add-on writes the stock solid as `stock.stl`. The viewer refuses a mesh that is not closed, that encloses nothing, or that would take too long to sample (copies of its triangles piled up). |
 
 ## Tools
 
