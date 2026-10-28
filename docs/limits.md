@@ -1,4 +1,4 @@
-# Known limits (v0.5 Public Alpha)
+# Known limits (v0.6 Public Alpha)
 
 ## Platforms
 
