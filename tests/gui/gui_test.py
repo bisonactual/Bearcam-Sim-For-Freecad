@@ -3,7 +3,8 @@ commands sit in the CAM menu (and Simulate on the Project Setup toolbar), Simula
 for the post and the machine, writes the job and opens the viewer, the machine command changes the
 machine, a second Simulate re-posts to the open viewer, a drag-knife job on no machine. Dialogs are
 answered and message boxes recorded through the add-on's own QtGui (a stand-in), so nothing waits.
-Run: FreeCAD.exe -u TEMP_USER_CFG gui_test.py, with BEARCAM_GUITEST_OUT and BEARCAM_GUITEST_DOC set."""
+Run: FreeCAD.exe -u TEMP_USER_CFG gui_test.py, with BEARCAM_GUITEST_OUT, BEARCAM_GUITEST_DOC and
+BEARCAM_GUITEST_VIEWER set."""
 import json
 import os
 import traceback
@@ -14,7 +15,7 @@ from PySide import QtCore, QtGui
 
 OUT = os.environ["BEARCAM_GUITEST_OUT"]
 DOC = os.environ["BEARCAM_GUITEST_DOC"]
-VIEWER = "D:/SimSpike/build/Release"
+VIEWER = os.environ["BEARCAM_GUITEST_VIEWER"]  # the folder holding stockviewer
 log = {"version": ".".join(FreeCAD.Version()[:3]), "steps": [], "dialogs": [], "messages": [], "launched": []}
 
 

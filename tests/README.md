@@ -24,5 +24,9 @@ line correspondence, operation markers and a constant 12000 RPM in the released 
 readback. The minimum-spindle-speed compatibility case uses the supplied machine definition
 without a minimum-speed override in the job.
 
-The add-on is version 0.5.1; `release.json` intentionally keeps the existing 0.5.0 simulator
-download and checksum. These fixes require no new executable.
+The posting fixes came in 0.5.1, which kept the 0.5.0 simulator download; the add-on is now 0.6.0
+and `release.json` pins the 0.6.0 simulator.
+
+`gui/gui_test.py` drives the add-on in FreeCAD's GUI (its two commands, the post and machine
+dialogs, a re-post to the open viewer, a drag-knife job): run it with FreeCAD itself, on a copy of
+the user settings, as its docstring says.

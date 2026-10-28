@@ -70,8 +70,8 @@ them. Display only: the machine never cuts and is never checked for collisions.
 - **PrintNC V4:** the gantry moves in Y, the X carriage on it, the spindle in Z.
 
 To change a job's machine, use **CAM > BearCAM simulator machine...**, then simulate again. A job
-whose FreeCAD machine (the job's *Machine*, FreeCAD 1.2) names a Carvera or a PrintNC is offered
-that machine first. Headless: `BEARCAM_MACHINE=carvera-air` (or `printnc-v4`).
+whose FreeCAD machine (the job's *Machine*, FreeCAD 26.3) names a Carvera or Makera, or a PrintNC,
+is offered that machine first. Headless: `BEARCAM_MACHINE=carvera-air` (or `printnc-v4`).
 
 ### Tools
 

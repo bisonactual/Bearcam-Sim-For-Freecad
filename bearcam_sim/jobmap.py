@@ -613,7 +613,7 @@ def machine_guess(job):
     """The simulator's machine for a job whose FreeCAD machine (FreeCAD 1.2's Job.Machine) names
     one, else ""."""
     name = str(getattr(job, "Machine", "") or "").lower().replace(" ", "")
-    if "carvera" in name:
+    if "carvera" in name or "makera" in name:  # Makera's own machine file is Makera_Air
         return "carvera-air"
     if "printnc" in name:
         return "printnc-v4"

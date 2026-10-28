@@ -47,5 +47,5 @@ A drilling cycle in G91, outside G17 or with L repeats is refused too.
 
 Makera auxiliary-control blocks combined with motion or other commands are refused by the
 add-on. Put them on separate lines. Other posts and unknown M-codes are not rewritten. The
-unchanged 0.5.0 executable itself still interprets S on a raw M851 block as spindle speed;
-the add-on's `program.nc` adaptation prevents that during a FreeCAD simulation.
+simulator itself still interprets S on a raw M851 block as spindle speed; the add-on's
+`program.nc` adaptation prevents that during a FreeCAD simulation.

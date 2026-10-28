@@ -41,6 +41,20 @@
 - The simulator's licence (`LICENSE-SIMULATOR.txt`) is final; the PrintNC model in the download is
   under CC BY 4.0, credited in `CREDITS.md`.
 
+## 0.5.1 (26 October 2026)
+
+### Fixed
+
+- **Machine posts (FreeCAD 26.3):** a job with a machine is posted with that machine's post
+  processor, its settings and the job's overrides, through FreeCAD's machine-post export, ahead of
+  a legacy or remembered post; no G-code editor or remote upload runs.
+- **Makera posts:** standalone `M851 S…` / `M852` auxiliary-output blocks from the official
+  `makera_26_MCH` and `makera_legacy` posts become comments in the simulation copy, so their PWM
+  no longer changes the simulated spindle speed; Makera's minimum spindle speed is kept where
+  FreeCAD 26.3 leaves it unset.
+- Tool and operation labels with parentheses no longer break the posted comments. The unmodified
+  export is kept beside the simulator's input as `posted.nc`.
+
 ## 0.5.0 (22 October 2026)
 
 First public release.

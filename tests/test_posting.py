@@ -181,7 +181,7 @@ class SimulationInputTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder, \
                 patch.object(jobmap, 'machine_post', return_value='makera_26_MCH'), \
                 patch.object(jobmap, 'post_job', return_value=raw), \
-                patch.object(jobmap, 'stock_of', return_value={'kind': 'box'}), \
+                patch.object(jobmap, 'stock_of', return_value=({'kind': 'box'}, None)), \
                 patch.object(jobmap, 'tools_of', return_value=[{'number': 1}]):
             path, summary = jobmap.prepare(job, 'stale_legacy', folder=folder)
             with open(os.path.join(folder, 'posted.nc'), encoding='utf-8') as f:
