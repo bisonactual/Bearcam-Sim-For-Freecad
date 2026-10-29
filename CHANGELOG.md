@@ -14,6 +14,8 @@
 
 - A job set to a machine whose files are missing (not downloaded, or deleted) now plays without
   the machine, and the simulator says so, instead of not opening.
+- **SpaceMouse:** the view stops when the cap is let go. It could keep drifting until the
+  simulator's window lost focus.
 
 ## 0.6.0 (28 October 2026)
 
