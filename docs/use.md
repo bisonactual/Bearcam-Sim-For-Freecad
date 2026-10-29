@@ -16,9 +16,11 @@ The first time, in this order:
    export; this takes precedence over a legacy or remembered post choice.
 2. **Machine**, the first time for each job: which machine to show it on, *None*, the *Makera
    Carvera Air* or the *PrintNC V4* (see [Machine](#machine)); remembered for that job.
-3. **Download**, the first time ever: the add-on offers to download the simulator (about 11 MB)
+3. **Download**, the first time ever: the add-on offers to download the simulator (about 1 MB)
    and checks it against the SHA-256 it pins before using it, or lets you choose a folder that
-   holds one ([installing](install.md)).
+   holds one ([installing](install.md)). The machine models are a download of their own (about
+   10 MB), offered only the first time a job is shown on a machine: *Download*, or *Without the
+   machine* (the job's machine is then set to None).
 4. **Post and describe.** The job is posted (no G-code editor opens, and no remote upload runs for
    machine posts; a job posted as several files plays as one program, in order) and the stock, the
    tools, the work offset, the operations and the machine go into a job file next to the program

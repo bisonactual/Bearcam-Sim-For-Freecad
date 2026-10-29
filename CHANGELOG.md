@@ -1,5 +1,20 @@
 # Changes
 
+## 0.6.1 (29 October 2026)
+
+### Changed
+
+- **A smaller download.** The simulator is about 1 MB again (0.6.0: about 11 MB). The machine
+  models, most of 0.6.0's download, are a download of their own (about 10 MB), checked against
+  their own pinned SHA-256 and offered only the first time a job is shown on a machine:
+  *Download*, or *Without the machine* (the job's machine is then set to None). Jobs on no machine
+  never fetch them.
+
+### Fixed
+
+- A job set to a machine whose files are missing (not downloaded, or deleted) now plays without
+  the machine, and the simulator says so, instead of not opening.
+
 ## 0.6.0 (28 October 2026)
 
 ### New

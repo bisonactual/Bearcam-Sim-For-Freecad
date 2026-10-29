@@ -3,7 +3,8 @@
 # user picks), posts it with the job's post processor (or one the user picks for a job that names
 # none), writes the job file and opens the viewer; run again, it re-posts and the open viewer
 # reads the job again. The first time for a job it asks which machine to show it on (none, the
-# Makera Carvera Air, the PrintNC V4), remembered; "BearCAM simulator machine..." changes that.
+# Makera Carvera Air, the PrintNC V4), remembered; "BearCAM simulator machine..." changes that. The
+# machine models are a download of their own, offered the first time a job is shown on a machine.
 import os
 import traceback
 
@@ -91,6 +92,65 @@ def choose_machine(doc, job, ask=False):
     return choice
 
 
+def progress_bar(text):
+    """A download's progress bar, shown, and the callback that moves it."""
+    bar = QtGui.QProgressDialog(text, "", 0, 100, main_window())
+    bar.setCancelButton(None)
+    bar.setWindowTitle(TITLE)
+    bar.setWindowModality(QtCore.Qt.WindowModal)
+    bar.show()
+
+    def progress(done, total):
+        if total:
+            bar.setValue(int(100 * done / total))
+        QtGui.QApplication.processEvents()
+
+    return bar, progress
+
+
+def ensure_machine(doc, job, exe, machine):
+    """The machine to show the job on, with its models beside the viewer: downloaded now (asked)
+    when it has none, else "" when the user goes on without the machine (remembered for the job).
+    None if the user cancels."""
+    if not machine or viewer.machine_installed(exe, machine):
+        return machine
+    info = viewer.machines_info()
+    label = jobmap.machine_label(machine)
+    later = "(The job's machine is then set to None; CAM > BearCAM simulator machine... changes it.)"
+    box = QtGui.QMessageBox(main_window())
+    box.setWindowTitle(TITLE)
+    box.setIcon(QtGui.QMessageBox.Question)
+    if info:
+        url, name, size = info
+        mb = f", {size / 1e6:.1f} MB" if size else ""
+        box.setText(f"The {label} is drawn from the simulator's machine models, which are not downloaded yet.\n\n"
+                    f"Download {name}{mb} from\n{url}?\n\n"
+                    "Its SHA-256 is checked against the one this add-on pins before it is used. Or show the job "
+                    f"without the machine. {later}")
+        download = box.addButton("Download", QtGui.QMessageBox.AcceptRole)
+    else:
+        box.setText(f"The simulator has no model of the {label}, and none has been published for download.\n\n"
+                    f"Show the job without the machine? {later}")
+        download = None
+    without = box.addButton("Without the machine", QtGui.QMessageBox.ActionRole)
+    box.addButton(QtGui.QMessageBox.Cancel)
+    box.exec_()
+    clicked = box.clickedButton()
+    if download is not None and clicked == download:
+        bar, progress = progress_bar("Downloading the BearCAM simulator's machine models...")
+        try:
+            viewer.download_machines(exe, progress)
+        finally:
+            bar.close()
+        if not viewer.machine_installed(exe, machine):
+            raise SimError(f"The downloaded machine models have no {label}.")
+        return machine
+    if clicked == without:
+        prefs.set_machine_choice(doc, job, "")
+        return ""
+    return None
+
+
 def ensure_viewer():
     """The viewer's path: the local folder's, the downloaded one, or downloaded now (asked), or a
     folder the user chooses. None if the user cancels."""
@@ -117,17 +177,7 @@ def ensure_viewer():
     box.exec_()
     clicked = box.clickedButton()
     if download is not None and clicked == download:
-        bar = QtGui.QProgressDialog("Downloading the BearCAM simulator...", "", 0, 100, main_window())
-        bar.setCancelButton(None)
-        bar.setWindowTitle(TITLE)
-        bar.setWindowModality(QtCore.Qt.WindowModal)
-        bar.show()
-
-        def progress(done, total):
-            if total:
-                bar.setValue(int(100 * done / total))
-            QtGui.QApplication.processEvents()
-
+        bar, progress = progress_bar("Downloading the BearCAM simulator...")
         try:
             return viewer.download(user_dir, progress)
         finally:
@@ -170,6 +220,9 @@ class SimulateCommand:
                 return
             exe = ensure_viewer()
             if exe is None:
+                return
+            machine = ensure_machine(doc, job, exe, machine)
+            if machine is None:
                 return
             QtGui.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
             try:

@@ -30,6 +30,12 @@ used, the download is checked against the SHA-256 pinned in `bearcam_sim/release
 that does not match is not used. The simulator is kept in FreeCAD's user data folder, under
 `BearCAMSimulator/<version>/<platform>`.
 
+The machine models (the Makera Carvera Air and the PrintNC V4, about 10 MB, most of the release)
+are a download of their own, `bearcam-machines-<version>.zip`, offered only the first time a job
+is shown on a machine and checked against their own pinned SHA-256. Their `machines` folder goes
+beside the simulator program. For a simulator you unpacked yourself, unzip the models into its
+folder. Without them, a job set to a machine plays without it, and the simulator says so.
+
 You can instead point the add-on at a simulator you unpacked yourself: choose *Choose folder...*
 when asked, or set the parameter `LocalViewerFolder` (Tools > Edit parameters > BaseApp >
 Preferences > Mod > BearCAMSimulator) to the folder that holds `stockviewer` (or

@@ -1,16 +1,21 @@
 {
-  "version": "0.6.0",
-  "base_url": "https://github.com/bisonactual/Bearcam-Sim-For-Freecad/releases/download/v0.6.0/",
+  "version": "0.6.1",
+  "base_url": "https://github.com/bisonactual/Bearcam-Sim-For-Freecad/releases/download/v0.6.1/",
   "files": {
     "windows-x86_64": {
-      "name": "bearcam-simulator-0.6.0-windows-x86_64.zip",
-      "sha256": "57d8bd382c3b743ed7a30b89dbeb58d344070131342ed87871d088d3dfa22023",
-      "size": 11423765
+      "name": "bearcam-simulator-0.6.1-windows-x86_64.zip",
+      "sha256": "b98db659809bc59a82483c3c4744110e1682c665963846ab043e886bbfaf8d18",
+      "size": 974530
     },
     "linux-x86_64": {
-      "name": "bearcam-simulator-0.6.0-linux-x86_64.tar.gz",
-      "sha256": "751c7c2f05cbd3331f270b607015e1b1de73fbab9e093f570af01bf916bc224f",
-      "size": 11362596
+      "name": "bearcam-simulator-0.6.1-linux-x86_64.tar.gz",
+      "sha256": "87771cabdc82d1b3c33680d47cc9944cf456ce2af246a6ed96dcb24d863e577a",
+      "size": 936066
     }
+  },
+  "machines": {
+    "name": "bearcam-machines-0.6.1.zip",
+    "sha256": "ee70f25a67617edfa7f36274be64fc34d7f487ab10a2c0b24c7ad50c8038e105",
+    "size": 10453332
   }
 }

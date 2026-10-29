@@ -1,7 +1,8 @@
 # The viewer program: found in the local folder the user chose, else downloaded once per platform
 # from the release and checked against the SHA-256 pinned in release.json, then started as its own
-# process, silently. A job whose viewer is still open is only re-posted: the viewer sees its files
-# change and reads them again.
+# process, silently. The machine models are a download of their own, pinned the same way. A job
+# whose viewer is still open is only re-posted: the viewer sees its files change and reads them
+# again.
 import hashlib
 import json
 import os
@@ -98,7 +99,7 @@ def sha256_of(path):
     return h.hexdigest()
 
 
-# An unpacked release is about 2 MB; anything past this is not one.
+# An unpacked release is about 2 MB, the machine models about 35 MB; anything past this is not one.
 MAX_UNPACKED = 200 << 20
 
 
@@ -142,6 +143,53 @@ class HttpsOnly(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
+def fetch(url, name, size, pinned, tmp, what, progress=None):
+    """Downloads url into tmp (no more than its pinned size) and checks it against its pinned
+    SHA-256; returns its path. `what` names it in messages ("viewer", "machine models")."""
+    if not url.lower().startswith("https://"):
+        raise SimError(f"The address of the {what}, {url}, is not HTTPS; nothing was downloaded.")
+    most = int(size) if size else MAX_UNPACKED  # the pinned size: more is not the pinned file
+    archive = os.path.join(tmp, name)
+    try:
+        opener = urllib.request.build_opener(HttpsOnly)
+        with opener.open(url, timeout=60) as r, open(archive, "wb") as f:
+            total = int(r.headers.get("Content-Length") or 0)
+            done = 0
+            while True:
+                block = r.read(1 << 16)
+                if not block:
+                    break
+                done += len(block)
+                if done > most:
+                    raise SimError(f"The download is larger than the pinned {most} bytes; it was stopped and not used.")
+                f.write(block)
+                if progress:
+                    progress(done, total)
+    except OSError as e:
+        raise SimError(f"The {what} could not be downloaded from {url}: {e}") from e
+    got = sha256_of(archive)
+    if got != pinned.lower():
+        raise SimError(f"The download of the {what} does not match its pinned SHA-256 (got {got}, expected "
+                       f"{pinned.lower()}); it was not used.")
+    return archive
+
+
+def unpack(archive, dest):
+    """Unpacks a checked zip or tarball into dest, refusing anything outside it, links and more
+    than MAX_UNPACKED."""
+    if archive.endswith(".zip"):
+        with zipfile.ZipFile(archive) as z:
+            check_zip(z, dest)
+            z.extractall(dest)
+    else:
+        with tarfile.open(archive) as t:
+            check_tar(t, dest)
+            if hasattr(tarfile, "data_filter"):  # Python 3.12, and 3.8.17+ / 3.11.4+
+                t.extractall(dest, filter="data")
+            else:
+                t.extractall(dest)
+
+
 def download(user_data_dir, progress=None):
     """Downloads this platform's viewer, checks it against the pinned SHA-256, unpacks it into
     the cache and returns the viewer's path."""
@@ -149,49 +197,15 @@ def download(user_data_dir, progress=None):
     if info is None:
         raise SimError("No viewer has been published for download yet: set a local viewer folder instead.")
     url, name, size = info
-    if not url.lower().startswith("https://"):
-        raise SimError(f"The viewer's address {url} is not HTTPS; nothing was downloaded.")
     pinned = release()["files"][platform_key()]["sha256"].lower()
-    most = int(size) if size else MAX_UNPACKED  # the pinned size: more is not the pinned file
     folder = cache_dir(user_data_dir)
     os.makedirs(folder, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="bearcam-sim-dl-") as tmp:
-        archive = os.path.join(tmp, name)
-        try:
-            opener = urllib.request.build_opener(HttpsOnly)
-            with opener.open(url, timeout=60) as r, open(archive, "wb") as f:
-                total = int(r.headers.get("Content-Length") or 0)
-                done = 0
-                while True:
-                    block = r.read(1 << 16)
-                    if not block:
-                        break
-                    done += len(block)
-                    if done > most:
-                        raise SimError(f"The download is larger than the pinned {most} bytes; it was stopped and not used.")
-                    f.write(block)
-                    if progress:
-                        progress(done, total)
-        except OSError as e:
-            raise SimError(f"The viewer could not be downloaded from {url}: {e}") from e
-        got = sha256_of(archive)
-        if got != pinned:
-            raise SimError(f"The downloaded viewer does not match its pinned SHA-256 (got {got}, expected {pinned}); "
-                           "it was not used.")
-        unpack = os.path.join(tmp, "unpacked")
-        if name.endswith(".zip"):
-            with zipfile.ZipFile(archive) as z:
-                check_zip(z, unpack)
-                z.extractall(unpack)
-        else:
-            with tarfile.open(archive) as t:
-                check_tar(t, unpack)
-                if hasattr(tarfile, "data_filter"):  # Python 3.12, and 3.8.17+ / 3.11.4+
-                    t.extractall(unpack, filter="data")
-                else:
-                    t.extractall(unpack)
+        archive = fetch(url, name, size, pinned, tmp, "viewer", progress)
+        unpacked = os.path.join(tmp, "unpacked")
+        unpack(archive, unpacked)
         shutil.rmtree(folder, ignore_errors=True)
-        shutil.copytree(unpack, folder)
+        shutil.copytree(unpacked, folder)
     exe = in_folder(folder)
     if not exe:
         raise SimError(f"The downloaded viewer has no {exe_name()}.")
@@ -200,6 +214,61 @@ def download(user_data_dir, progress=None):
     with open(os.path.join(folder, ".checked"), "w", encoding="utf-8") as f:
         f.write(pinned + "\n")
     return exe
+
+
+# ---- The machine models: most of the release, so a download of their own, fetched only for a job
+# shown on a machine. Their machines folder goes beside the viewer, where it looks for them.
+
+
+def machines_info():
+    """(url, file name, size in bytes or None) of the machine models' zip, or None when none is
+    pinned."""
+    rel = release()
+    entry = rel.get("machines")
+    if not rel.get("base_url") or not entry or not entry.get("sha256"):
+        return None
+    return rel["base_url"].rstrip("/") + "/" + entry["name"], entry["name"], entry.get("size")
+
+
+def machine_installed(exe, machine_id):
+    """Whether the viewer at exe has a machine's files, where it looks for them: machines/ID.json
+    beside it (or, for a build, in the source tree two folders up) and the model that names."""
+    folder = os.path.dirname(exe)
+    for spec in (os.path.join(folder, "machines", machine_id + ".json"),
+                 os.path.join(folder, os.pardir, os.pardir, "machines", machine_id + ".json")):
+        if os.path.isfile(spec):
+            try:
+                with open(spec, encoding="utf-8") as f:
+                    body = json.load(f).get("body") or ""
+            except (OSError, ValueError, AttributeError):
+                return False
+            return bool(body) and os.path.isfile(os.path.join(os.path.dirname(spec), body))
+    return False
+
+
+def download_machines(exe, progress=None):
+    """Downloads the machine models, checks them against the pinned SHA-256 and puts their
+    machines folder's files beside the viewer at exe."""
+    info = machines_info()
+    if info is None:
+        raise SimError("No machine models have been published for download yet.")
+    url, name, size = info
+    dest = os.path.join(os.path.dirname(exe), "machines")
+    with tempfile.TemporaryDirectory(prefix="bearcam-sim-dl-") as tmp:
+        archive = fetch(url, name, size, release()["machines"]["sha256"], tmp, "machine models", progress)
+        unpacked = os.path.join(tmp, "unpacked")
+        unpack(archive, unpacked)
+        src = os.path.join(unpacked, "machines")
+        if not os.path.isdir(src):
+            raise SimError("The downloaded machine models have no machines folder.")
+        try:
+            os.makedirs(dest, exist_ok=True)
+            for f in sorted(os.listdir(src)):
+                if os.path.isfile(os.path.join(src, f)):
+                    shutil.copy2(os.path.join(src, f), os.path.join(dest, f))
+        except OSError as e:
+            raise SimError(f"The machine models could not be put beside the simulator, in {dest}: {e}") from e
+    return dest
 
 
 # ---- Running viewers

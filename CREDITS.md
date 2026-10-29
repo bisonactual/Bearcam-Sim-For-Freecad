@@ -2,6 +2,8 @@
 
 ## In the simulator's release archives
 
+(The machine models are in the machine models' archive, `bearcam-machines-<version>.zip`.)
+
 - **Microsoft Visual C++ runtime libraries** (Windows archive only): `msvcp140.dll`, `msvcp140_1.dll`,
   `msvcp140_2.dll`, `vcruntime140.dll`, `vcruntime140_1.dll`. Copyright Microsoft Corporation;
   redistributed unmodified as "distributable code" under the Microsoft Visual Studio licence

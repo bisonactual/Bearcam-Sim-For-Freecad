@@ -1,12 +1,19 @@
 """Drives the BearCAM Simulator add-on in FreeCAD's GUI as a user would: the add-on loads, its two
 commands sit in the CAM menu (and Simulate on the Project Setup toolbar), Simulate in BearCAM asks
 for the post and the machine, writes the job and opens the viewer, the machine command changes the
-machine, a second Simulate re-posts to the open viewer, a drag-knife job on no machine. Dialogs are
+machine, a second Simulate re-posts to the open viewer, a drag-knife job on no machine; then, on an
+unpacked release without the machine models, a machine job shown without its machine (and the job
+set to none), and one whose models are downloaded (served from the release folder). Dialogs are
 answered and message boxes recorded through the add-on's own QtGui (a stand-in), so nothing waits.
-Run: FreeCAD.exe -u TEMP_USER_CFG gui_test.py, with BEARCAM_GUITEST_OUT, BEARCAM_GUITEST_DOC and
-BEARCAM_GUITEST_VIEWER set."""
+Run: FreeCAD.exe -u TEMP_USER_CFG gui_test.py, with BEARCAM_GUITEST_OUT, BEARCAM_GUITEST_DOC,
+BEARCAM_GUITEST_VIEWER (a folder holding stockviewer) and BEARCAM_GUITEST_RELEASE (the packaged
+release's folder: its archives, and windows/ or linux/ unpacked) set."""
+import io
 import json
 import os
+import shutil
+import sys
+import tempfile
 import traceback
 
 import FreeCAD
@@ -16,6 +23,7 @@ from PySide import QtCore, QtGui
 OUT = os.environ["BEARCAM_GUITEST_OUT"]
 DOC = os.environ["BEARCAM_GUITEST_DOC"]
 VIEWER = os.environ["BEARCAM_GUITEST_VIEWER"]  # the folder holding stockviewer
+RELEASE = os.environ.get("BEARCAM_GUITEST_RELEASE", "")
 log = {"version": ".".join(FreeCAD.Version()[:3]), "steps": [], "dialogs": [], "messages": [], "launched": []}
 
 
@@ -51,7 +59,36 @@ class Dialogs:
 
 
 class Boxes:
-    Ok = QtGui.QMessageBox.Ok
+    """QMessageBox: its static boxes recorded as messages; a box with buttons of its own records
+    its text and buttons as a "box" dialog and clicks the button answers["box"] names."""
+    Ok, Cancel, Question = QtGui.QMessageBox.Ok, QtGui.QMessageBox.Cancel, QtGui.QMessageBox.Question
+    AcceptRole, ActionRole = QtGui.QMessageBox.AcceptRole, QtGui.QMessageBox.ActionRole
+
+    def __init__(self, *a):
+        self.text, self.buttons, self.clicked = "", [], None
+
+    def setWindowTitle(self, *a):
+        pass
+
+    def setIcon(self, *a):
+        pass
+
+    def setText(self, text):
+        self.text = text
+
+    def addButton(self, button, role=None):
+        self.buttons.append(button)
+        return button
+
+    def exec_(self):
+        named = [b for b in self.buttons if isinstance(b, str)]
+        log["dialogs"].append({"kind": "box", "items": named, "preselected": None, "text": self.text})
+        answer = answers.pop("box", None)
+        self.clicked = answer if answer in named else None
+        return 0
+
+    def clickedButton(self):
+        return self.clicked
 
     @staticmethod
     def _record(kind, args):
@@ -93,6 +130,71 @@ def simulate(doc, job, label):
                        "tools": [t["kind"] for t in data["tools"]], "mtime": os.path.getmtime(path)})
     step(label, data is not None and pid != 0 and not result["messages"], result)
     return result
+
+
+def choose_machine(job, label):
+    answers.update({"machine": label})
+    FreeCADGui.Selection.clearSelection()
+    FreeCADGui.Selection.addSelection(job)
+    FreeCADGui.runCommand("BearCAM_SimulatorMachine")
+    QtGui.QApplication.processEvents()
+
+
+def machine_models(doc, job, prefs):
+    """On an unpacked release without the machine models: shown without the machine, then the
+    models downloaded (served from the release folder, checked against the add-on's pins)."""
+    import urllib.request
+
+    import bearcam_sim.viewer as viewer
+
+    if not RELEASE:
+        step("machine models: skipped (BEARCAM_GUITEST_RELEASE not set)", True)
+        return
+    rel = viewer.release()
+    platform = "windows" if sys.platform.startswith("win") else "linux"
+    unpacked = os.path.join(RELEASE, platform, f"bearcam-simulator-{rel['version']}")
+    folder = os.path.join(tempfile.mkdtemp(prefix="bearcam-guitest-"), os.path.basename(unpacked))
+    shutil.copytree(unpacked, folder)
+    prefs.set_local_folder(folder)
+    exe = viewer.in_folder(folder)
+    step("the release has no machine models", exe and not os.path.exists(os.path.join(folder, "machines")) and
+         not viewer.machine_installed(exe, "carvera-air"), folder)
+
+    url, name, size = viewer.machines_info()
+    served = []
+
+    class Opener:  # the GitHub release, served from the release folder
+        def open(self, u, timeout=0):
+            served.append(u)
+            data = open(os.path.join(RELEASE, name), "rb").read()
+            r = io.BytesIO(data)
+            r.headers = {"Content-Length": str(len(data))}
+            return r
+
+    real = urllib.request.build_opener
+    urllib.request.build_opener = lambda *handlers: Opener()
+    try:
+        choose_machine(job, "PrintNC V4")
+        answers.update({"box": "Without the machine"})
+        without = simulate(doc, job, "Job001 on the PrintNC, models not downloaded: without the machine")
+        box = log["dialogs"][-1]
+        step("asked: download the models, or without the machine", without["dialogs"] == ["box"] and
+             box["items"] == ["Download", "Without the machine"] and name in box["text"] and served == [], box)
+        step("without the machine: no router, the job set to none", without.get("router") is None and
+             prefs.machine_choice(doc, job) == "", without)
+
+        choose_machine(job, "Makera Carvera Air")
+        answers.update({"box": "Download"})
+        downloaded = simulate(doc, job, "Job001 on the Carvera Air: the models downloaded")
+        step("downloaded from the pinned address, beside the viewer", served == [url] and
+             viewer.machine_installed(exe, "carvera-air") and viewer.machine_installed(exe, "printnc-v4") and
+             downloaded.get("router") == "carvera-air", {"served": served, "router": downloaded.get("router")})
+        choose_machine(job, "PrintNC V4")
+        again = simulate(doc, job, "Job001 on the PrintNC: the models there, no question")
+        step("no question once downloaded", again["dialogs"] == [] and again.get("router") == "printnc-v4" and
+             served == [url], again)
+    finally:
+        urllib.request.build_opener = real
 
 
 def run():
@@ -143,6 +245,7 @@ def run():
         third = simulate(doc, job1, "Job001: drag knife dressup, no machine")
         step("Job001 file: a drag knife, no machine", third.get("router") is None and third.get("tools") == ["dragknife"],
              third)
+        machine_models(doc, job1, prefs)
     except Exception:
         step("exception", False, traceback.format_exc())
     finally:
