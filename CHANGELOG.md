@@ -1,5 +1,23 @@
 # Changes
 
+## 0.7.0 (18 November 2026)
+
+### New
+
+- **Text size.** A fourth row in the simulator's Settings (the Settings button, or P): 80 to
+  200 %. It scales all the text and the panels round it (the DRO, the G-code pane, the speed
+  buttons, the timeline's bands, Settings and help), so larger text still fits. Remembered
+  between runs.
+
+### Fixed
+
+- **4-axis jobs whose stock is a hair off the A axis now open.** FreeCAD can leave a Job's stock a
+  few microns off centre, and the simulator refused the job: *"the round stock's axis must be the
+  rotary axis"*. Up to 0.01 mm now counts as on the axis. A stock further off is still refused, and
+  the message now says by how much.
+- **Less memory for the height field:** its job lists are planned at 32 MiB instead of 128 MiB,
+  which helps graphics cards with little memory.
+
 ## 0.6.1 (29 October 2026)
 
 ### Changed

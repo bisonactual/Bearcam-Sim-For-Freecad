@@ -143,6 +143,8 @@ The DRO and the G-code pane fold to their title bars with their buttons (or D an
   - *Restart coarser* (the default) starts the volume again at a 1.3x coarser voxel, replays to
     where it was, and says so in the status line.
   - *Stop* stops the volume with a message.
+- **Text size:** 80 to 200 % (100 % the default). All the simulator's text, and the panels round
+  it, so larger text still fits.
 
 A memory or voxel change starts the engine again, which replays to where it was.
 

@@ -1,4 +1,4 @@
-# Known limits (v0.6 Public Alpha)
+# Known limits (v0.7 Public Alpha)
 
 ## Platforms
 
@@ -20,8 +20,9 @@
   to 300 mm across (the simulator samples the mesh on a grid of up to 8 million points), and its
   sharp edges a little rounded.
 - 4-axis programs are taken to turn the part by -A about +X (an ISO A table) on a bar whose axis is
-  the A axis. 5-axis programs need a machine description in the job file, which the add-on does
-  not write yet.
+  the A axis: the Job's stock must be centred on it (Y and Z of its centre at the work origin's,
+  within 0.01 mm). 5-axis programs need a machine description in the job file, which the add-on
+  does not write yet.
 - Rapids play at one rate (`RapidRate`, default 5000 mm/min; rotary rapids at 7200 degrees a
   minute), not at the machine's.
 
